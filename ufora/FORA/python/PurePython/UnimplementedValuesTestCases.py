@@ -237,3 +237,18 @@ class UnimplementedValuesTestCases(object):
                 Exceptions.UnconvertibleValueError
                 )
 
+    def test_unimplemented_builtin_submit_1(self):
+        def f():
+            if False:
+                return eval
+            return 0
+
+        self.evaluateWithExecutor(f)
+
+    def test_unimplemented_builtin_withBlock_1(self):
+        with self.create_executor() as fora:
+            with fora.remotely:
+                if False:
+                    res = eval
+                res = 0
+        
