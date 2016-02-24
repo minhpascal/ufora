@@ -18,9 +18,7 @@
 import waflib
 
 def cxx_compiler_options(cxx_opts):
-    cxx_opts.add_option(
-        '--cxx-warnings',
-        default='''
+    clang_warnings = '''
                    -Werror
                    -Qunused-arguments
                    -Wno-return-type-c-linkage
@@ -31,13 +29,29 @@ def cxx_compiler_options(cxx_opts):
                    -Wno-redeclared-class-member
                    -Wno-parentheses-equality
                    -Wno-#warnings
-                   ''',
+                   '''
+    gcc_warnings = '''
+                   -w
+                   -Wno-return-type-c-linkage
+                   -Wno-tautological-compare
+                   -Wno-dangling-else
+                   -Wno-logical-op-parentheses
+                   -Wno-deprecated-declarations
+                   -Wno-redeclared-class-member
+                   -Wno-parentheses-equality
+                   -Wno-#warnings
+                   -fpermissive
+                   '''
+    cxx_opts.add_option(
+        '--cxx-warnings',
+        # TODO: figure out if we're using clang or gcc
+        default=gcc_warnings,
         dest='cxx_warnings',
         help='extra warning flags to pass to C++ compiler')
 
     cxx_opts.add_option(
         '--cxx-compile-flags',
-        default='-pthread -fPIC -std=c++0x',
+        default='-pthread -fPIC -std=c++11',
         dest='cxx_compile_flags',
         help='common flags to pass to C++ compiler')
 
@@ -86,7 +100,7 @@ def cxx_include_options(cxx_opts):
     cxx_opts.add_option(
         '--add-system-include',
         action="append",
-        default=['/usr/lib/llvm-3.5/include','/usr/local/cuda-7.5/include'],
+        default=['/usr/lib/llvm-3.5/include','/usr/local/cuda-8.0/include'],
         dest='cxx_system_includes',
         help='add a directory to the system include path')
 
