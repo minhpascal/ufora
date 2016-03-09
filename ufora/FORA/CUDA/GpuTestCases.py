@@ -20,6 +20,32 @@ import ufora.test.PerformanceTestReporter as PerformanceTestReporter
 import math
 
 class GpuTestCases:
+    def compareCudaToCPU(self, funcExpr, vecExpr):
+        s3 = InMemoryS3Interface.InMemoryS3InterfaceFactory()
+
+        text = """
+            let f = __funcExpr__;
+            let i = __vecExpr__;
+            let cuda = `CUDAVectorApply(f, [i])[0];
+            let cpu = f(i)
+
+            if (cuda == cpu)
+                true
+            else
+                throw String(cuda) + " != " + String(cpu)
+            """.replace("__funcExpr__", funcExpr).replace("__vecExpr__", vecExpr)
+
+        res = InMemoryCumulusSimulation.computeUsingSeveralWorkers(text, s3, 1, timeout = 120, threadCount=4)
+        self.assertIsNotNone(res)
+        self.assertTrue(res.isResult(), "Failed with %s on %s: %s" % (funcExpr, vecExpr, res))
+
+    def test_cuda_read_tuples(self):
+        self.compareCudaToCPU("fun((a,b)) { (b,a) }", "(1,2)")
+        self.compareCudaToCPU("fun((a,b)) { b + a }", "(1,2)")
+        self.compareCudaToCPU("fun((a,b)) { b + a }", "(1s32,2s32)")
+        self.compareCudaToCPU("fun(b) { b + 1s32 }", "2")
+        self.compareCudaToCPU("math.log", "2")
+
     def check_log_function_on_GPU(self, input):
         s3 = InMemoryS3Interface.InMemoryS3InterfaceFactory()
         text = """
@@ -65,7 +91,7 @@ class GpuTestCases:
         self.assertIsNotNone(res)
         self.assertTrue(res.isResult(), res)
 
-
+class A:
     @PerformanceTestReporter.PerfTest("python.InMemoryCumulus.GPU.LotsOfLogsWithoutGPU")
     def test_basic_gpu_works_2(self):
         s3 = InMemoryS3Interface.InMemoryS3InterfaceFactory()

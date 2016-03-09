@@ -362,6 +362,8 @@ private:
         result << "}\n";
         
         mResult = result.str();
+        
+        LOG_DEBUG << mResult;
         }
         
     //generates a string of 'ld.global' instructions
