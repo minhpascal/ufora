@@ -194,35 +194,38 @@ void SimpleForwardReasoner::compile(PolymorphicSharedPtr<ReasonerFrame> frame)
 			{
 			ControlFlowGraphLabel label = labelAndEntryRoots.first;
 
-			for (auto root: labelAndEntryRoots.second)
-				{
-				ReasonerCodegenForFrame codegen(
-					mAxioms, 
-					mCompiler, 
-					frame,
-					this->polymorphicSharedPtrFromThis()
-					);
-
-				auto blockID = codegen.blockForNodeRoot(root);
-				auto typedJumpTarget = mCompiler->getJumpTarget(ReasonerCodegenForFrame::entrypointNameFor(toLink), blockID);
-
-				auto instructionPtr = mInterpreterInstructionGraph->getInstruction(
-					frame->graph(),
-					label
-					);
-
-				auto jovs = mapITV(typedJumpTarget.callSignature(), [&](TypedFora::Type t) { return t.jov(); });
-
-				instructionPtr->getCompilerEntrypointMap().setJumpTarget(
-						JOVT::Unnamed(jovs),
-						typedJumpTarget
+			//don't put jump points at non-merge nodes. Otherwise, we may end up producing
+			//inconsistent entrypoints with different covering JOVs
+			if (label == ControlFlowGraphLabel() || frame->isMergeNode(label))
+				for (auto root: labelAndEntryRoots.second)
+					{
+					ReasonerCodegenForFrame codegen(
+						mAxioms, 
+						mCompiler, 
+						frame,
+						this->polymorphicSharedPtrFromThis()
 						);
 
-				std::string linkername = ReasonerCodegenForFrame::entrypointNameFor(toLink);
-				LOG_DEBUG_SCOPED("ReasonerPerf") << "Adding " << linkername << " for " << toLink;
+					auto blockID = codegen.blockForNodeRoot(root);
+					auto typedJumpTarget = mCompiler->getJumpTarget(ReasonerCodegenForFrame::entrypointNameFor(toLink), blockID);
 
-				jumpTargets.push_back(typedJumpTarget);
-				}
+					auto instructionPtr = mInterpreterInstructionGraph->getInstruction(
+						frame->graph(),
+						label
+						);
+
+					auto jovs = mapITV(typedJumpTarget.callSignature(), [&](TypedFora::Type t) { return t.jov(); });
+
+					instructionPtr->getCompilerEntrypointMap().setJumpTarget(
+							JOVT::Unnamed(jovs),
+							typedJumpTarget
+							);
+
+					std::string linkername = ReasonerCodegenForFrame::entrypointNameFor(toLink);
+					LOG_DEBUG_SCOPED("ReasonerPerf") << "Adding " << linkername << " for " << toLink;
+
+					jumpTargets.push_back(typedJumpTarget);
+					}
 			}
 		}
 
