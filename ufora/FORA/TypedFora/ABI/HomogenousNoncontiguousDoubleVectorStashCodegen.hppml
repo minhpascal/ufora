@@ -100,15 +100,17 @@ public:
 	TypedNativeExpression<bool> offsetPairIsValid(TypedNativeExpression<int64_t> offset1, TypedNativeExpression<int64_t> offset2) const
 		{
 		using namespace TypedNativeExpressionHelpers;
-		
+
 		TypedNativeVariable<pair<int64_t, int64_t> > validRange;
 
-		return if_(offset1 < this->offsetStart1() || offset1 >= this->offsetStop1(),
+		return if_(
+			offset1 < this->offsetStart1() || offset1 >= this->offsetStop1(),
 			TypedNativeExpression<bool>(false),
 			let(validRange, 
 				validRangeTable()[offset1],
 				offset2 >= validRange.first() && offset2 < validRange.second()
-				)
+				),
+			.00000001
 			);
 		}
 
