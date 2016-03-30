@@ -13,6 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ****************************************************************************/
+#include "HomogenousNoncontiguousDoubleVectorStash.hppml"
 #include "HomogenousDoubleVectorStash.hppml"
 #include "HomogenousDoubleVectorStashRecord.hppml"
 #include "BigVectorHandle.hppml"
@@ -27,29 +28,20 @@
 namespace TypedFora {
 namespace Abi {
 
-HomogenousDoubleVectorStash HomogenousDoubleVectorStash::updateStash(
-				HomogenousDoubleVectorStash currentStash,
+HomogenousNoncontiguousDoubleVectorStash HomogenousNoncontiguousDoubleVectorStash::updateStash(
+				HomogenousNoncontiguousDoubleVectorStash currentStash,
 				TypedFora::Abi::PooledVectorRecord pooledHandle,
 				int64_t offset1,
 				int64_t offset2,
 				int64_t offsetWithinRecord1
 				)
 	{
-	static double last = curClock();
-	static int ct = 0;
-	ct++;
-	if (ct % 64 == 0 && curClock() - last > 1.0)
-		{
-		LOG_TEST << ct;
-		last = curClock();
-		}
-
 	const TypedFora::Abi::VectorRecord& handle = pooledHandle.getVectorRecord();
 
 	int64_t h1Size = handle.size();
 
 	if (offset1 < -h1Size || offset1 >= h1Size)
-		return HomogenousDoubleVectorStash::canonicalOutOfBoundsDim1();
+		return HomogenousNoncontiguousDoubleVectorStash::canonicalOutOfBoundsDim1();
 
 	int64_t realOffset1 = (offset1 < 0 ? offset1 + h1Size : offset1);
 
@@ -60,7 +52,7 @@ HomogenousDoubleVectorStash HomogenousDoubleVectorStash::updateStash(
 		{
 		record->updateStashForOffsets(offset1, offset2);
 
-		return record->getStash();
+		return record->getNoncontiguousStash();
 		}
 
 	//we may have to map something
@@ -70,20 +62,20 @@ HomogenousDoubleVectorStash HomogenousDoubleVectorStash::updateStash(
 
 	if (!vecRecordPtr)
 		//we need to load this page
-		return HomogenousDoubleVectorStash::withStashRecord(currentStash.stashRecord());
+		return HomogenousNoncontiguousDoubleVectorStash::withStashRecord(currentStash.stashRecord());
 
 	const VectorRecord& innerVector = *(VectorRecord*)(vecRecordPtr + offsetWithinRecord1);
 
 	int64_t realOffset2 = (offset2 < 0 ? offset2 + innerVector.size() : offset2);
 
 	if (realOffset2 < 0 || realOffset2 >= innerVector.size())
-		return HomogenousDoubleVectorStash::canonicalOutOfBoundsDim2();
+		return HomogenousNoncontiguousDoubleVectorStash::canonicalOutOfBoundsDim2();
 	
 	//everything is in bounds. Check if it's also loaded.
 	auto slice2 = innerVector.sliceForOffset(realOffset2);
 
 	if (!slice2.offsetFor(realOffset2))
-		return HomogenousDoubleVectorStash::withStashRecord(currentStash.stashRecord());
+		return HomogenousNoncontiguousDoubleVectorStash::withStashRecord(currentStash.stashRecord());
 
 	if (!record)
 		record = Fora::Interpreter::ExecutionContext::currentExecutionContext()
@@ -91,53 +83,20 @@ HomogenousDoubleVectorStash HomogenousDoubleVectorStash::updateStash(
 
 	record->updateStashForOffsets(offset1, offset2);
 
-	auto stash = record->getStash();
-
-	lassert_dump(
-		offset1 >= stash.offset1Start() 
-			&& offset1 < stash.offset1Stop()
-			&& offset2 >= stash.offset2Start() 
-			&& offset2 < stash.offset2Stop(), 
-		offset1 << " and " << offset2 << " not in " 
-			<< "[" << stash.offset1Start() << ", " << stash.offset1Stop() << ")"
-			<< ", [" << stash.offset2Start() << ", " << stash.offset2Stop() << ")"
-		);
+	auto stash = record->getNoncontiguousStash();
 
 	return stash;
 	}
 
 
-VectorLoadRequest HomogenousDoubleVectorStash::getLoadRequest(
+VectorLoadRequest HomogenousNoncontiguousDoubleVectorStash::getLoadRequest(
 					TypedFora::Abi::VectorRecord handle,
 					int64_t offset1,
 					int64_t offset2,
 					int64_t offsetWithinRecord1
 					)
 	{
-	if (offset1 < 0)
-		offset1 += handle.size();
-
-	lassert(offset1 >= 0 && offset1 < handle.size());
-
-	TypedFora::Abi::ForaValueArraySlice slice = handle.sliceForOffset(offset1);
-
-	auto vecRecordPtr = slice.offsetFor(offset1);
-	if (!vecRecordPtr)
-		return VectorLoadRequest(handle, offset1);
-
-	const VectorRecord& innerVector = *(VectorRecord*)(vecRecordPtr + offsetWithinRecord1);
-
-	int64_t actualOffset2 = offset2 < 0 ? offset2 + innerVector.size() : offset2;
-
-	lassert(actualOffset2 >= 0 && actualOffset2 < innerVector.size());
-
-	auto innerSlice = innerVector.sliceForOffset(actualOffset2);
-
-	if (!innerSlice.offsetFor(actualOffset2))
-		return VectorLoadRequest(innerVector, actualOffset2);
-
-	//everything looked loaded
-	return VectorLoadRequest();
+	return HomogenousDoubleVectorStash::getLoadRequest(handle, offset1, offset2, offsetWithinRecord1);
 	}
 }
 }

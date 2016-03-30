@@ -26,6 +26,7 @@
 #include "../TypedFora/ABI/VectorRecordCodegen.hppml"
 #include "../TypedFora/ABI/HomogenousVectorStashCodegen.hppml"
 #include "../TypedFora/ABI/HomogenousDoubleVectorStashCodegen.hppml"
+#include "../TypedFora/ABI/HomogenousNoncontiguousDoubleVectorStashCodegen.hppml"
 #include "../Vector/MutableVectorRecord.hppml"
 
 
@@ -180,7 +181,8 @@ public:
 				NativeTypeFor<MutableVectorRecord>::get() + 
 				NativeTypeFor<TypedFora::Abi::VectorHandle>::get() + 
 				NativeTypeFor<TypedFora::Abi::HomogenousVectorStash>::get() + 
-				NativeTypeFor<TypedFora::Abi::HomogenousDoubleVectorStash>::get()
+				NativeTypeFor<TypedFora::Abi::HomogenousDoubleVectorStash>::get() +
+				NativeTypeFor<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>::get()
 				;
 
 		return res;

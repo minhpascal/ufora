@@ -25,7 +25,7 @@ namespace Abi {
 class HomogenousDoubleVectorStashRecord;
 
 /***********************************
-HomogenousDoubleVectorStash
+HomogenousNoncontiguousDoubleVectorStash
 
 A datastructure that supports fast cache-local accesses into a vector
 of the form
@@ -34,38 +34,37 @@ of the form
 
 **********************************/
 
-@type HomogenousDoubleVectorStash = 
+@type HomogenousNoncontiguousDoubleVectorStash = 
 	int64_t offset1Start,
 	int64_t offset1Stop,
-	int64_t offset2Start,
-	int64_t offset2Stop,
+	pair<int64_t, int64_t>* validRangeTable,
 	pair<uint8_t*, int64_t>* pointerAndStrideTable,
 	HomogenousDoubleVectorStashRecord* stashRecord
 {
 public:
-	static HomogenousDoubleVectorStash withStashRecord(HomogenousDoubleVectorStashRecord* rec)
+	static HomogenousNoncontiguousDoubleVectorStash withStashRecord(HomogenousDoubleVectorStashRecord* rec)
 		{
-		return HomogenousDoubleVectorStash(0,0,0,0,nullptr,rec);
+		return HomogenousNoncontiguousDoubleVectorStash(0,0,nullptr,nullptr,rec);
 		}
 
-	static HomogenousDoubleVectorStash canonicalOutOfBoundsDim1()
+	static HomogenousNoncontiguousDoubleVectorStash canonicalOutOfBoundsDim1()
 		{
-		return HomogenousDoubleVectorStash(1,0,0,0,nullptr,nullptr);
+		return HomogenousNoncontiguousDoubleVectorStash(1,0,nullptr,nullptr,nullptr);
 		}
 
-	static HomogenousDoubleVectorStash canonicalOutOfBoundsDim2()
+	static HomogenousNoncontiguousDoubleVectorStash canonicalOutOfBoundsDim2()
 		{
-		return HomogenousDoubleVectorStash(0,0,1,0,nullptr,nullptr);
+		return HomogenousNoncontiguousDoubleVectorStash(2,0,nullptr,nullptr,nullptr);
 		}
 	
 	bool dim1IsOutOfBounds() const
 		{
-		return offset1Stop() < offset1Start();
+		return offset1Stop() < offset1Start() && offset1Start() == 1;
 		}
 
 	bool dim2IsOutOfBounds() const
 		{
-		return offset2Stop() < offset2Start();
+		return offset1Stop() < offset1Start() && offset1Start() == 2;
 		}
 
 	uint8_t* offsetFor(int64_t offset1, int64_t offset2) const
@@ -73,7 +72,9 @@ public:
 		if (offset1 < offset1Start() || offset1 >= offset1Stop())
 			return nullptr;
 
-		if (offset2 < offset2Start() || offset1 >= offset2Stop())
+		auto range = validRangeTable()[offset1];
+
+		if (offset2 < range.first || offset1 >= range.second)
 			return nullptr;
 
 		return nullptr;
@@ -97,8 +98,8 @@ public:
 	//the largest square region that can be read into in the source vector. If offset1 or
 	//offset2 is out of bounds, we return a stash with stop<start in the appropriate region.
 	//if we need a vector loaded, we return stop==start.
-	static HomogenousDoubleVectorStash updateStash(
-						HomogenousDoubleVectorStash currentStashRecord,
+	static HomogenousNoncontiguousDoubleVectorStash updateStash(
+						HomogenousNoncontiguousDoubleVectorStash currentStashRecord,
 						TypedFora::Abi::PooledVectorRecord handle,
 						int64_t offset1,
 						int64_t offset2,

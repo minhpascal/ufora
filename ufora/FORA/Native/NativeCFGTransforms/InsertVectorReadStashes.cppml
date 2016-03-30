@@ -22,6 +22,7 @@
 #include "../../Axioms/Vector.GetItem.hppml"
 #include "../../TypedFora/ABI/HomogenousVectorStashCodegen.hppml"
 #include "../../TypedFora/ABI/HomogenousDoubleVectorStashCodegen.hppml"
+#include "../../TypedFora/ABI/HomogenousNoncontiguousDoubleVectorStashCodegen.hppml"
 #include "../../TypedFora/ABI/VectorRecordCodegen.hppml"
 #include "../../TypedFora/TypedFora.hppml"
 #include "../../../core/cppml/CPPMLTransform.hppml"
@@ -215,7 +216,7 @@ public:
 			
 			NativeVariable newStashVar2 = 
 				NativeVariable::Temp(
-					NativeTypeFor<TypedFora::Abi::HomogenousDoubleVectorStash>::get()
+					NativeTypeFor<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>::get()
 					);
 
 			variables = variables + newStashVar2;
@@ -289,7 +290,7 @@ public:
 							newExpressions = newExpressions + stashVar->expr();
 						else
 							newExpressions = newExpressions + 
-								NativeExpression::Zero(NativeTypeFor<TypedFora::Abi::HomogenousDoubleVectorStash>::get());
+								NativeExpression::Zero(NativeTypeFor<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>::get());
 						}
 					}
 
@@ -397,7 +398,7 @@ public:
 		NativeVariable updatedPointerAndStash = NativeVariable::Temp(*updatedExpr.type());
 
 		NativeVariable updatedStashVar = NativeVariable::Temp(
-			NativeTypeFor<TypedFora::Abi::HomogenousDoubleVectorStash>::get()
+			NativeTypeFor<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>::get()
 			);
 
 		//extract any metadata that's already been pushed down onto any vector load continuations we might

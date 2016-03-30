@@ -19,6 +19,7 @@
 #include "../TypedFora/ABI/NativeLayoutType.hppml"
 #include "../TypedFora/ABI/VectorRecord.hpp"
 #include "../TypedFora/ABI/ScatteredForaValues.hppml"
+#include "../TypedFora/ABI/HomogenousNoncontiguousDoubleVectorStash.hppml"
 #include "../Judgment/JudgmentUtil.hppml"
 #include "ValueDeepcopier.hppml"
 
@@ -108,6 +109,12 @@ public:
 	bool visit(TypedFora::Abi::HomogenousDoubleVectorStash& stash)
 		{
 		stash = TypedFora::Abi::HomogenousDoubleVectorStash();
+		return true;
+		}
+	
+	bool visit(TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash& stash)
+		{
+		stash = TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash();
 		return true;
 		}
 	

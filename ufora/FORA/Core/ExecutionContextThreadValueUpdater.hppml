@@ -155,6 +155,13 @@ public:
 		return visitor.visit(stash);
 		}
 
+	bool visit(TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash& stash)
+		{
+		value_visitor_type visitor(mState.mValueVisitorState);
+
+		return visitor.visit(stash);
+		}
+
 	bool visitString(String& ioString, bool stringOwned)
 		{
 		return this->visit(Type::String(), (uint8_t*)&ioString, 1, 0, stringOwned);

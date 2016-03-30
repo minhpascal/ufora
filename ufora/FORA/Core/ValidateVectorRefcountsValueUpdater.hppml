@@ -34,6 +34,7 @@ namespace TypedFora {
 namespace Abi {
 class HomogenousVectorStash;
 class HomogenousDoubleVectorStash;
+class HomogenousNoncontiguousDoubleVectorStash;
 }
 }
 
@@ -293,6 +294,11 @@ public:
 		}
 
 	bool visit(TypedFora::Abi::HomogenousDoubleVectorStash& stash)
+		{
+		return false;
+		}
+
+	bool visit(TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash& stash)
 		{
 		return false;
 		}

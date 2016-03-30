@@ -15,26 +15,26 @@
 ****************************************************************************/
 #pragma once
 
-#include "HomogenousDoubleVectorStash.hppml"
+#include "HomogenousNoncontiguousDoubleVectorStash.hppml"
 #include "../../Native/NativeTypeFor.hpp"
 #include "../../Native/NativeTypeForCppml.hpp"
 #include "../../Native/TypedNativeLibraryFunction.hpp"
 #include "VectorRecordCodegen.hppml"
 #include "VectorLoadRequestCodegen.hppml"
 
-class HomogenousDoubleVectorStashSpecialType {};
+class HomogenousNoncontiguousDoubleVectorStashSpecialType {};
 
 template<>
-class NativeTypeForImpl<HomogenousDoubleVectorStashSpecialType> {
+class NativeTypeForImpl<HomogenousNoncontiguousDoubleVectorStashSpecialType> {
 public:
 	static NativeType get(void)
 		{
-		return NativeType::Composite("HomogenousDoubleVectorStashSpecialType", NativeTypeFor<uint8_t>::get());
+		return NativeType::Composite("HomogenousNoncontiguousDoubleVectorStashSpecialType", NativeTypeFor<uint8_t>::get());
 		}
 };
 
 template<>
-class NativeTypeForImpl<TypedFora::Abi::HomogenousDoubleVectorStash> {
+class NativeTypeForImpl<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash> {
 public:
 	static NativeType get(void)
 		{
@@ -42,39 +42,38 @@ public:
 			emptyTreeVec() + 
 				NativeTypeFor<int64_t>::get() + 
 				NativeTypeFor<int64_t>::get() + 
-				NativeTypeFor<int64_t>::get() + 
-				NativeTypeFor<int64_t>::get() + 
-				NativeTypeFor<pair<HomogenousDoubleVectorStashSpecialType*, int64_t>* >::get() + 
+				NativeTypeFor<pair<int64_t, int64_t>* >::get() + 
+				NativeTypeFor<pair<HomogenousNoncontiguousDoubleVectorStashSpecialType*, int64_t>* >::get() + 
 				NativeTypeFor<void*>::get()
 			);
 		}
 };
 
 template<>
-class TypedNativeExpressionBehaviors<TypedFora::Abi::HomogenousDoubleVectorStash> {
+class TypedNativeExpressionBehaviors<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash> {
 public:
 	TypedNativeExpressionBehaviors(NativeExpression e) : mThis(e)
 		{
 		}
 
-	TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash> self() const
+	TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash> self() const
 		{
-		return TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash>(mThis);
+		return TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>(mThis);
 		}
 
 	TypedNativeExpression<bool> dim1IsOutOfBounds() const
 		{
-		return offsetStop1() < offsetStart1();
+		return offsetStop1() < offsetStart1() && offsetStart1() == TypedNativeExpression<int64_t>(1);
 		}
 
 	TypedNativeExpression<bool> dim2IsOutOfBounds() const
 		{
-		return offsetStop2() < offsetStart2();
+		return offsetStop1() < offsetStart1() && offsetStart1() == TypedNativeExpression<int64_t>(2);
 		}
 
 	TypedNativeExpression<bool> needsVectorLoad() const
 		{
-		return offsetStop1() == offsetStart1() && offsetStop2() == offsetStart2();
+		return offsetStop1() == offsetStart1();
 		}
 
 	TypedNativeExpression<int64_t> offsetStart1() const
@@ -87,20 +86,30 @@ public:
 		return TypedNativeExpression<int64_t>(mThis[1]);
 		}
 
-	TypedNativeExpression<int64_t> offsetStart2() const
+	TypedNativeExpression<pair<int64_t, int64_t>* > validRangeTable() const
 		{
-		return TypedNativeExpression<int64_t>(mThis[2]);
-		}
-
-	TypedNativeExpression<int64_t> offsetStop2() const
-		{
-		return TypedNativeExpression<int64_t>(mThis[3]);
+		return TypedNativeExpression<pair<int64_t, int64_t>* >(mThis[2]);
 		}
 
 	TypedNativeExpression<pair<uint8_t*, int64_t>* > pointerTable() const
 		{
-		return TypedNativeExpression<pair<HomogenousDoubleVectorStashSpecialType*, int64_t>* >(mThis[4])
+		return TypedNativeExpression<pair<HomogenousNoncontiguousDoubleVectorStashSpecialType*, int64_t>* >(mThis[3])
 			.cast<pair<uint8_t*, int64_t>* >();
+		}
+
+	TypedNativeExpression<bool> offsetPairIsValid(TypedNativeExpression<int64_t> offset1, TypedNativeExpression<int64_t> offset2) const
+		{
+		using namespace TypedNativeExpressionHelpers;
+		
+		TypedNativeVariable<pair<int64_t, int64_t> > validRange;
+
+		return if_(offset1 < this->offsetStart1() || offset1 >= this->offsetStop1(),
+			TypedNativeExpression<bool>(false),
+			let(validRange, 
+				validRangeTable()[offset1],
+				offset2 >= validRange.first() && offset2 < validRange.second()
+				)
+			);
 		}
 
 	//compute &x[i1][i2]...[in] - &x for a 'x' of type 'compositeType' and 'i1..in' = indices
@@ -124,7 +133,7 @@ public:
 		return offset;
 		}
 
-	TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash> updatedStash(
+	TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash> updatedStash(
 								TypedNativeExpression<TypedFora::Abi::VectorRecord> vecExpr,
 								TypedNativeExpression<int64_t> offset1,
 								TypedNativeExpression<int64_t> offset2,
@@ -136,27 +145,26 @@ public:
 		{
 		using namespace TypedNativeExpressionHelpers;
 
-		TypedNativeVariable<TypedFora::Abi::HomogenousDoubleVectorStash> newStash, newStashWithoutLoadCheck;
+		TypedNativeVariable<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash> newStash, newStashWithoutLoadCheck;
 
 		int64_t offsetWithinExpr1 = computeOffsetOfIndicesWithinType(indicesWithinExpr1, typeOfExpr1);
 
 		return 
-			if_(offset1 >= this->offsetStart1() && offset1 < this->offsetStop1() &&
-					offset2 >= this->offsetStart2() && offset2 < this->offsetStop2(),
+			if_(offsetPairIsValid(offset1, offset2),
 				self(),
 				let(newStashWithoutLoadCheck,
 					let(newStash,
-						makeTypedNativeLibraryFunction(&TypedFora::Abi::HomogenousDoubleVectorStash::updateStash)(
-							TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash>(mThis),
+						makeTypedNativeLibraryFunction(&TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash::updateStash)(
+							TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>(mThis),
 							TypedNativeExpression<TypedFora::Abi::PooledVectorRecord>(vecExpr.getExpression()), 
 							offset1,
 							offset2,
 							TypedNativeExpression<int64_t>(offsetWithinExpr1)
 							),
 						if_(newStash.needsVectorLoad(),
-							TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash>(
-								makeTypedNativeLibraryFunction(&TypedFora::Abi::HomogenousDoubleVectorStash::getLoadRequest)(
-									vecExpr, 
+							TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>(
+								makeTypedNativeLibraryFunction(&TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash::getLoadRequest)(
+									vecExpr,
 									offset1,
 									offset2,
 									TypedNativeExpression<int64_t>(offsetWithinExpr1)
@@ -166,11 +174,11 @@ public:
 							)
 						).wrapInEmptyCFGLayer(),
 					if_(newStashWithoutLoadCheck.dim1IsOutOfBounds(),
-						TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash>(
+						TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>(
 							ifOutOfBoundsExpr1.getExpression()
 							),
 						if_(newStashWithoutLoadCheck.dim2IsOutOfBounds(),
-							TypedNativeExpression<TypedFora::Abi::HomogenousDoubleVectorStash>(
+							TypedNativeExpression<TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash>(
 								ifOutOfBoundsExpr2.getExpression()
 								),
 							newStashWithoutLoadCheck

@@ -23,6 +23,7 @@
 #include "../VectorDataManager/PageletTree.hppml"
 #include "../TypedFora/ABI/HomogenousVectorStash.hppml"
 #include "../TypedFora/ABI/HomogenousDoubleVectorStash.hppml"
+#include "../TypedFora/ABI/HomogenousNoncontiguousDoubleVectorStash.hppml"
 
 namespace Fora {
 namespace Interpreter {
@@ -90,6 +91,14 @@ public:
 		{
 		//invalidate any vector stashes
 		stash = TypedFora::Abi::HomogenousDoubleVectorStash();
+
+		return true;
+		}
+	
+	bool visit(TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash& stash)
+		{
+		//invalidate any vector stashes
+		stash = TypedFora::Abi::HomogenousNoncontiguousDoubleVectorStash();
 
 		return true;
 		}

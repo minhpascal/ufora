@@ -35,6 +35,7 @@ HomogenousDoubleVectorStashRecord::HomogenousDoubleVectorStashRecord(
         mOffsetWithinFirstVector(offsetWithinFirstVector)
     {
     mStash.stashRecord() = this;
+    mNoncontiguousStash.stashRecord() = this;
     }
 
 HomogenousDoubleVectorStashRecord::~HomogenousDoubleVectorStashRecord()
@@ -58,6 +59,11 @@ void HomogenousDoubleVectorStashRecord::updateStashForOffsets(int64_t offset1, i
         mPointers = (std::pair<uint8_t*, int64_t>*)mPool->allocate(sizeof(std::pair<uint8_t*, int64_t>) * vectorSize * 2);
         mValidRanges = (std::pair<int64_t, int64_t>*)mPool->allocate(sizeof(std::pair<int64_t, int64_t>) * vectorSize * 2);
 
+        mNoncontiguousStash.validRangeTable() = mValidRanges + vectorSize;
+        mNoncontiguousStash.pointerAndStrideTable() = mPointers + vectorSize;
+        mNoncontiguousStash.offset1Start() = -vectorSize;
+        mNoncontiguousStash.offset1Stop() = vectorSize;
+        
         for (long k = 0; k < vectorSize * 2; k++)
             {
             mPointers[k] = std::pair<uint8_t*, int64_t>();
@@ -175,6 +181,17 @@ HomogenousDoubleVectorStash HomogenousDoubleVectorStashRecord::getStash() const
     lassert(!mStash.dim2IsOutOfBounds());
 
     return mStash;
+    }
+
+HomogenousNoncontiguousDoubleVectorStash HomogenousDoubleVectorStashRecord::getNoncontiguousStash() const
+    {
+    lassert(!mStash.dim1IsOutOfBounds());
+    lassert(!mStash.dim2IsOutOfBounds());
+    
+    lassert(mNoncontiguousStash.pointerAndStrideTable());
+    lassert(mNoncontiguousStash.validRangeTable());
+
+    return mNoncontiguousStash;
     }
 
 }
