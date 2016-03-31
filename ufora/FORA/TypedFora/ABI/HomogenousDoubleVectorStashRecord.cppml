@@ -18,6 +18,7 @@
 #include "ForaValueArraySlice.hppml"
 #include "VectorHandle.hpp"
 #include "../../../core/Logging.hpp"
+#include "../../../core/Clock.hpp"
 
 
 namespace TypedFora {
@@ -32,7 +33,10 @@ HomogenousDoubleVectorStashRecord::HomogenousDoubleVectorStashRecord(
         mPointers(nullptr),
         mValidRanges(nullptr),
         mVector(vector),
-        mOffsetWithinFirstVector(offsetWithinFirstVector)
+        mOffsetWithinFirstVector(offsetWithinFirstVector),
+        mTransposedArray(nullptr),
+        mTransposedArrayInUse(0),
+        mOrigPointers(0)
     {
     mStash.stashRecord() = this;
     }
@@ -43,7 +47,55 @@ HomogenousDoubleVectorStashRecord::~HomogenousDoubleVectorStashRecord()
         mPool->free((uint8_t*)mPointers);
     if (mValidRanges)
         mPool->free((uint8_t*)mValidRanges);
+    if (mTransposedArray)
+        mPool->free((uint8_t*)mTransposedArray);
+    if (mOrigPointers)
+        mPool->free((uint8_t*)mOrigPointers);
     }
+
+namespace {
+
+// Xdim, Ydim are the dimensions of the *in array. 
+// (x0,y0) and (X_block_size, Y_block_size) define the sub-array to be transposed.
+void cacheObliviousTranspose(pair<uint8_t*, int64_t>* in, pair<uint8_t*, int64_t>* out, int64_t x0, int64_t y0, int64_t X_block_size, int64_t Y_block_size)
+    {
+    // Controls performance. It should be set as low as possible without losing 
+    // too much performance from excessive recursive decomposition.
+    constexpr int64_t BLOCK_SIZE_LIMIT = 64; 
+    if (X_block_size <= BLOCK_SIZE_LIMIT  &&  Y_block_size <= BLOCK_SIZE_LIMIT)
+        {
+        for (int64_t x = x0; x < x0+X_block_size; ++x)
+            for (int64_t y = y0; y < y0+Y_block_size; ++y)
+                {
+                ((int64_t*)(out[x].first + out[x].second * y))[0] = 
+                    ((int64_t*)(in[x].first + in[x].second * y))[0];
+                }
+        }
+    else if (X_block_size > BLOCK_SIZE_LIMIT  &&  Y_block_size > BLOCK_SIZE_LIMIT)
+        { // split in both directions
+        int64_t xMid = X_block_size / 2;
+        int64_t yMid = Y_block_size / 2;
+        cacheObliviousTranspose(in, out, x0, y0, xMid, yMid);
+        cacheObliviousTranspose(in, out, x0+xMid, y0, X_block_size-xMid, yMid);
+        cacheObliviousTranspose(in, out, x0, y0+yMid, xMid, Y_block_size-yMid);
+        cacheObliviousTranspose(in, out, x0+xMid, y0+yMid, X_block_size-xMid, Y_block_size-yMid);
+        }
+    else if (X_block_size > BLOCK_SIZE_LIMIT)
+        { // split along X-axis
+        int64_t xMid = X_block_size / 2;
+        cacheObliviousTranspose(in, out, x0, y0, xMid, Y_block_size);
+        cacheObliviousTranspose(in, out, x0+xMid, y0, X_block_size-xMid, Y_block_size);
+        }
+    else // Y_block_size > BLOCK_SIZE_LIMIT
+        { // split along Y-axis
+        int64_t yMid = Y_block_size / 2;
+        cacheObliviousTranspose(in, out, x0, y0, X_block_size, yMid);
+        cacheObliviousTranspose(in, out, x0, y0+yMid, X_block_size, Y_block_size-yMid);
+        }
+
+    }
+
+}
 
 void HomogenousDoubleVectorStashRecord::updateStashForOffsets(int64_t offset1, int64_t offset2)
     {
@@ -65,6 +117,14 @@ void HomogenousDoubleVectorStashRecord::updateStashForOffsets(int64_t offset1, i
             }
 
         mStash.pointerAndStrideTable() = mPointers + vectorSize;
+        }
+
+    if (mTransposedArrayInUse)
+        {
+        mTransposedArrayInUse = false;
+        std::swap(mPointers, mOrigPointers);
+        mStash.offset2Start() = mOrigValidRange2.first;
+        mStash.offset2Stop() = mOrigValidRange2.second;
         }
 
     pair<int64_t, int64_t> validDim2 = mValidRanges[offset1 + vectorSize];
@@ -96,6 +156,38 @@ void HomogenousDoubleVectorStashRecord::updateStashForOffsets(int64_t offset1, i
         mStash.offset2Start() = validDim2.first;
         mStash.offset2Stop() = validDim2.second;
         }
+
+    if (mStash.offset1Start() == 0 && mStash.offset1Stop() == vectorSize && mObjectSizeWithinSecondVector == sizeof(int64_t) && vectorSize <= 512)
+        {
+        constexpr int64_t maxTransposeRows = 128;
+
+        if (!mTransposedArray)
+            {
+            mTransposedArray = 
+                (int64_t*)mPool->allocate(sizeof(int64_t) * vectorSize * maxTransposeRows);
+            mOrigPointers = (std::pair<uint8_t*, int64_t>*)mPool->allocate(sizeof(std::pair<uint8_t*, int64_t>) * vectorSize * 2);
+            LOG_TEST << "Allocating an array...";
+            }
+
+        double t0 = curClock();
+
+        int64_t newStride = sizeof(int64_t) * vectorSize;
+
+        int64_t offset2Start = offset2;
+        int64_t offset2Stop = std::min<int64_t>(mStash.offset2Stop(), offset2 + maxTransposeRows);
+
+        for (long k = 0; k < vectorSize; k++)
+            mOrigPointers[vectorSize + k] = make_pair((uint8_t*)(mTransposedArray + k) - newStride * offset2Start, newStride);
+
+        //cacheObliviousTranspose(mPointers + vectorSize, mOrigPointers + vectorSize, 0, offset2Start, vectorSize, offset2Stop - offset2Start);
+
+        std::swap(mPointers, mOrigPointers);
+        mTransposedArrayInUse = true;
+        mOrigValidRange2.first = mStash.offset2Start();
+        mOrigValidRange2.second = mStash.offset2Stop();
+        mStash.offset2Start() = offset2Start;
+        mStash.offset2Stop() = offset2Stop;
+        }
     }
 
 void HomogenousDoubleVectorStashRecord::mapColumn(int64_t offset1, int64_t offset2)
@@ -112,6 +204,8 @@ void HomogenousDoubleVectorStashRecord::mapColumn(int64_t offset1, int64_t offse
     lassert(offset1Ptr);
 
     const VectorRecord* innerVector = (const VectorRecord*)(offset1Ptr + mOffsetWithinFirstVector);
+
+    mObjectSizeWithinSecondVector = innerVector->jor()[0].type()->size();
 
     if (innerVector->dataPtr() && innerVector->dataPtr()->unpagedValues() && innerVector->dataPtr()->pagedAndPageletTreeValueCount() == 0)
         {

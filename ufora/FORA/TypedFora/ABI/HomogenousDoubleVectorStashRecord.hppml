@@ -62,6 +62,16 @@ private:
     //contained in the first.
     int64_t mOffsetWithinFirstVector;
 
+    int64_t mObjectSizeWithinSecondVector;
+
+    int64_t* mTransposedArray;
+
+    bool mTransposedArrayInUse;
+
+    std::pair<uint8_t*, int64_t>* mOrigPointers;
+
+    pair<int64_t, int64_t> mOrigValidRange2;
+
     //there are mVector.size() * 2 of these
     std::pair<uint8_t*, int64_t>* mPointers;
 

@@ -73,10 +73,9 @@ block_with_tuple: fun(outer, inner) {
 
 read_with_tuple: fun(cols) { 
 	let mb = 128
-	let cols = 20
 	let rows = 128 * 1024 * 1024 / cols
 	let data = block_with_tuple(cols, rows)
-	let passes = total_reads / cols / rows;
+	let passes = total_reads / cols / rows * 5;
 
 	fun() {
 		let res = tripleLoopSum(passes, (0,rows,1), (0,cols,1), fun(_, ix1, ix2) { data[ix2][1][ix1] })
@@ -88,6 +87,7 @@ read_with_tuple: fun(cols) {
 (`perf, `callResult) read_1bb_column_major_values_20_columns_with_tuple: read_with_tuple(20);
 
 `test check_read_1bb_column_major_values_20_columns_with_tuple: read_with_tuple(20)();
+`test check_read_1bb_column_major_values_100_columns_with_tuple: read_with_tuple(100)();
 
 `test check_read_column_major_values_negative_indices: (
 	let data = block(20, 1000000)
