@@ -450,9 +450,6 @@ class Simulator(object):
         nodejsOptions.append("--nodejs")
         nodejsOptions.append("--max_executable_size=2048")
 
-        nodejsOptions.append("--nodejs")
-        nodejsOptions.append("--trace_external_memory=true")
-        
         args = [relayScript,
                 '--port', str(self.relayPort),
                 '--gatewayport', str(self.subscribableWebObjectsPort)]
