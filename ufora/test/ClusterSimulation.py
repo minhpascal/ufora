@@ -434,21 +434,18 @@ class Simulator(object):
 
         def onStdOut(msg):
             hasStartedEvent.set()
-            logging.info("RELAY STDOUT> %s", msg)
+            logging.critical("RELAY STDOUT> %s", msg)
 
         def onStdErr(msg):
-            logging.info("RELAY STDERR> %s", msg)
+            logging.critical("RELAY STDERR> %s", msg)
 
-        coffeeCommand = 'coffee'
+        coffeeCommand = './run_coffee.sh'
         if 'UFORA_DEBUG_RELAY' in os.environ:
             coffeeCommand = 'coffee-debug'
 
         nodejsOptions = []
         if 'UFORA_PROFILE_RELAY' in os.environ:
             nodejsOptions = ['--nodejs', '--prof']
-
-        nodejsOptions.append("--nodejs")
-        nodejsOptions.append("--max_executable_size=2048")
 
         args = [relayScript,
                 '--port', str(self.relayPort),
