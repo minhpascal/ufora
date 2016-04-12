@@ -1,3 +1,3 @@
 #!/bin/sh
 
-coffee --nodejs --max_executable_size=2048 $*
+coffee --nodejs --max_old_space_size=2048 $*
