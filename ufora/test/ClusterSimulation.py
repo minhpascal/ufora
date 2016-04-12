@@ -447,6 +447,12 @@ class Simulator(object):
         if 'UFORA_PROFILE_RELAY' in os.environ:
             nodejsOptions = ['--nodejs', '--prof']
 
+        nodejsOptions.append("--nodejs")
+        nodejsOptions.append("--max_executable_size=2048")
+
+        nodejsOptions.append("--nodejs")
+        nodejsOptions.append("--trace_external_memory=true")
+        
         args = [relayScript,
                 '--port', str(self.relayPort),
                 '--gatewayport', str(self.subscribableWebObjectsPort)]
