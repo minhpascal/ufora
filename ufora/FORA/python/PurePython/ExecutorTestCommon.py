@@ -35,12 +35,21 @@ class ExecutorTestCommon(object):
         else:
             executor = self.create_executor()
 
-        try:
-            func_proxy = executor.define(func).result()
-            args_proxy = [executor.define(a).result() for a in args]
-            res_proxy = func_proxy(*args_proxy).result()
+        t0 = time.time()
 
-            result = res_proxy.toLocal().result()
+        if 'timeout' in kwds:
+            timeout = kwds['timeout']
+        else:
+            timeout = 60.0
+
+        timeoutFun = lambda: timeout - (time.time() - t0)
+        
+        try:
+            func_proxy = executor.define(func).result(timeout=timeoutFun())
+            args_proxy = [executor.define(a).result(timeout=timeoutFun()) for a in args]
+            res_proxy = func_proxy(*args_proxy).result(timeout=timeoutFun())
+
+            result = res_proxy.toLocal().result(timeout=timeoutFun())
             return result
         finally:
             if shouldClose:
