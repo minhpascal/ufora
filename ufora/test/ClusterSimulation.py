@@ -460,6 +460,8 @@ class Simulator(object):
                    'start',
                    '-c', coffeeCommand] + nodejsOptions + args
 
+        logging.critical("ClusterSimulation executing command: %s", command)
+
         SubprocessRunner.SubprocessRunner(command, onStdOut, onStdErr, env).start()
         return hasStartedEvent
 
