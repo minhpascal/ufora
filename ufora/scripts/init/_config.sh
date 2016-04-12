@@ -105,7 +105,7 @@ run_with_forever() {
     FOREVER_COMMAND="forever $FOREVER_ACTION $FOREVER_ARGS  \
                      -l $UFORA_LOG_DIR/$SERVICE_NAME.log \
                      -p $FOREVER_DIR --pidFile $PID_FILE \
-                     -a -c $SERVICE_LAUNCHER $SERVICE_FILE $SERVICE_ARGS"
+                     -a -c $SERVICE_LAUNCHER $SERVICE_LAUNCHER_ARGS $SERVICE_FILE $SERVICE_ARGS"
     echo $FOREVER_COMMAND
     $FOREVER_COMMAND
     RETVAL=$?

@@ -23,8 +23,9 @@ load_config
 SERVICE_NAME=ufora-web
 SERVICE_LAUNCHER="coffee"
 SERVICE_DIR=$SCRIPT_DIR/../../web/relay
+SERVICE_LAUNCHER_ARGS="--nodejs --max_executable_size=2048 --nodejs --trace_external_memory=true"
 SERVICE_FILE=$SERVICE_DIR/server.coffee
-SERVICE_ARGS="--gatewayport=$UFORA_GATEWAY_PORT --port=$UFORA_WEB_HTTP_PORT --max_executable_size=2048 --trace_external_memory=true"
+SERVICE_ARGS="--gatewayport=$UFORA_GATEWAY_PORT --port=$UFORA_WEB_HTTP_PORT"
 
 SERVICE_COMMAND=$1
 control_service
