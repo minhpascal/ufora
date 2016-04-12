@@ -16,6 +16,8 @@ import numpy
 import numpy.testing
 import random
 import time
+import pyfora.pure_modules.pure_pandas as pure_pandas
+import ufora.test.PerformanceTestReporter as PerformanceTestReporter
 
 
 class NumpyTestCases(object):
@@ -800,3 +802,58 @@ class NumpyTestCases(object):
         x = numpy.array([[-2.0,1.0],[-3.0,0.0]])
 
         self.equivalentEvaluationTest(f, x)
+
+    def test_dataframe_dot_perf_1(self):
+        with self.create_executor() as executor:
+            with executor.remotely:
+                df, vec = generate_data(1000000, 20)
+                
+            def loop(ct):
+                res = 0
+                for ix in xrange(ct):
+                    res = res + df.dot(vec)[ix % len(df)]
+
+                return res
+
+            @PerformanceTestReporter.PerfTest("pyfora.pure_pandas.dot_perf_1")
+            def test():
+                self.evaluateWithExecutor(loop, 100)
+
+            test()
+
+    def test_dataframe_dot_new_perf_1(self):
+        with self.create_executor() as executor:
+            with executor.remotely:
+                df, vec = generate_data(1000000, 20)
+                
+            def loop(ct):
+                res = 0
+                for ix in xrange(ct):
+                    res = res + df.dot(vec)[ix % len(df)]
+
+                return res
+
+            @PerformanceTestReporter.PerfTest("pyfora.pure_pandas.dot_perf_2")
+            def test():
+                self.evaluateWithExecutor(loop, 100)
+
+            test()
+            
+def dot_new(df, vec):
+    assert df.shape[1] == len(vec)
+
+    return pure_python.PurePythonSeries([
+        sum(df._columns[ix][jx] * vec[ix] for ix in xrange(len(vec))) \
+        for jx in xrange(len(df))
+        ])
+
+def generate_data(nRows, nColumns):
+    df = pure_pandas.PurePythonDataFrame(
+        [[float(rowIx % (colIx + 2)) for rowIx in xrange(nRows)] \
+         for colIx in xrange(nColumns)]
+        )
+
+    vec = [float(rowIx) for rowIx in xrange(nColumns)]
+
+    return df, vec
+
