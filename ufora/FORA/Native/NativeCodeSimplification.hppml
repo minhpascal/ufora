@@ -13,15 +13,12 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ****************************************************************************/
-#ifndef NativeCodeSimplification_hppml_
-#define NativeCodeSimplification_hppml_
+#pragma once
 
 #include "NativeCodeFlattened.hppml"
 #include "../../core/containers/TwoWaySetMap.hpp"
 
 class RuntimeConfig;
-
-//TODO cleanup tom: put these functions in their own namespace
 
 void	variableMerge(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
 
@@ -30,7 +27,7 @@ void	removeEmptyVariables(map<NativeBlockID, NativeCodeFlattened::Block>& outBlo
 void 	duplicateEntrypoints(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
 void 	dropExtraInterrupts(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
 void 	removeUnusedBlocks(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
-void	collapseLinearBlocks(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
+void	collapseLinearBlocks(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks, bool loudly);
 void 	promoteInBlockUseVariables(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
 void	removeVariableRewrites(map<NativeBlockID, NativeCodeFlattened::Block>& outBlocks);
 
@@ -44,7 +41,4 @@ void	getBlockFlow(
 		const map<NativeBlockID, NativeCodeFlattened::Block>& inBlocks,
 		TwoWaySetMap<NativeBlockID, NativeBlockID>& outFlow
 		);
-
-
-#endif
 

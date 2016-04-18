@@ -87,7 +87,10 @@ LLVMFunctionBuilder::LLVMFunctionBuilder(
 	createStagingBlocksAndTheirJumps();
 	replaceTempVarForBitcastingWithAlloc();
 	
-    if (mConfig.traceDefinitions() && SHOULD_LOG_INFO())
+    /*if (mName == "RF_98375FE2257FB43E05287645403346014E805EB7_gen_2" ||
+    		mName == "RF_EEC856CB8B94E882941765E2E188969C31F39818_gen_2" ||
+    		mName == "RF_EE71841F1DA146089399E8C4F67981EBE102515C_gen_2"
+    		)
         {
         std::string logMessage;
         	
@@ -96,8 +99,8 @@ LLVMFunctionBuilder::LLVMFunctionBuilder(
 	        mFunction->print(stream);
 	    	}
 
-        LOG_INFO << "LLVM definition for " << mName << ":\n" << logMessage;
-    	}
+        LOG_TEST << "LLVM definition for " << mName << ":\n" << logMessage;
+    	}*/
 	}
 	
 void LLVMFunctionBuilder::initializeFunction(

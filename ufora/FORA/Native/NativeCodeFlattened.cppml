@@ -1425,9 +1425,10 @@ void CPPMLPrettyPrint<NativeCodeFlattened::Block>:: prettyPrint(
 		}
 	s << ")";
 		
-	s << ", live = "
-		<< t.liveOnInput() << ". freq = "
-		<< t.relativeFrequency() << "\n"
+	s  << "freq = "
+		<< t.relativeFrequency()
+		<< ", live = "
+		<< prettyPrintStringWithoutWrapping(t.liveOnInput()) << "\n"
 		;
 	
 	for (long k = 0; k < t.defs().size(); k++)
@@ -1454,15 +1455,15 @@ void CPPMLPrettyPrint<NativeCodeFlattened::Term>::prettyPrint(
 	{
 	@match NativeCodeFlattened::Term(t)
 		-|	Jump((block, args, toDump)) ->> {
-			s << "\tjump to " << block << " with " << args << ". \n\t\t\tdump " << toDump;
+			s << "\tjump to " << block << " with " << prettyPrintStringWithoutWrapping(args) << ". \n\t\t\tdump " << prettyPrintStringWithoutWrapping(toDump);
 			}
 		-|	Branch(cond, (block, args, toDump), (block2, args2, toDump2), fracTrue) ->> {
 			s << "\tif " << cond << ":\n" << "\t     with "
 				<< fracTrue << ", jump to " << block << " with "
-				<< args << ". \n\t\t\tdump " << toDump << "\n"
+				<< prettyPrintStringWithoutWrapping(args) << ". \n\t\t\tdump " << prettyPrintStringWithoutWrapping(toDump) << "\n"
 				;
 			s << "\telse with " << (1.0 - fracTrue) << ", jump to " << block2 << " with "
-				<< args2 << ". \n\t\t\tdump " << toDump2
+				<< prettyPrintStringWithoutWrapping(args2) << ". \n\t\t\tdump " << prettyPrintStringWithoutWrapping(toDump2)
 				;
 			}
 		-|	Halt() ->> { s << "\tHALT\n"; ;}

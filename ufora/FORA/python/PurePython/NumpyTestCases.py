@@ -844,19 +844,20 @@ class NumpyTestCases(object):
 
     def test_dataframe_dot_new_perf_1(self):
         with self.create_executor() as executor:
+            width = 80
             with executor.remotely:
-                df, vec = generate_data(200000, 100)
+                df, vec = generate_data(20000000 / width, width)
 
             print "Generating locally."
 
-            df_local, vec_local = generate_data_local(200000, 100)
+            df_local, vec_local = generate_data_local(20000000 / width, width)
 
             print "Starting."
                 
             def loop(ct):
                 res = 0
                 for ix in xrange(ct):
-                    res = res + dot_new(df, vec)[ix % len(df)]
+                    res = res + dot_new(df, vec)[0]
 
                 return res
 
@@ -868,13 +869,21 @@ class NumpyTestCases(object):
                 return res
 
             # burn in run
-            self.evaluateWithExecutor(loop, 49)
+            ct = 10
+            while ct < 1000:
+                t0 = time.time()
+                self.evaluateWithExecutor(loop, ct)
+                pyfora_time = time.time() - t0
+                print ct, pyfora_time, " for pyfora"
 
-            with PerformanceTestReporter.RecordAsPerfTest("pyfora.pure_pandas.dot_perf_unrolled.pyfora"):
-                self.evaluateWithExecutor(loop, 50)
+                t0 = time.time()
+                loop_local(ct)
+                native_time = time.time() - t0
+                print ct, native_time, " for native"
 
-            with PerformanceTestReporter.RecordAsPerfTest("pyfora.pure_pandas.dot_perf_unrolled.native"):
-                loop_local(50)
+                print pyfora_time / native_time, " times slower than native"
+
+                ct *= 2
 
             
 def dot_new(df, vec):
@@ -931,9 +940,10 @@ def dot_new(df, vec):
 
 
 def generate_data(nRows, nColumns):
+    cols = [float(rowIx % (colIx + 2)) for colIx in xrange(nColumns) for rowIx in xrange(nRows)]
+
     df = pure_pandas.PurePythonDataFrame(
-        [[float(rowIx % (colIx + 2)) for rowIx in xrange(nRows)] \
-         for colIx in xrange(nColumns)]
+        [cols[colIx * nRows:(colIx+1) * nRows] for colIx in xrange(nColumns)]
         )
 
     vec = [float(rowIx) for rowIx in xrange(nColumns)]
@@ -946,7 +956,7 @@ def generate_data_local(nRows, nColumns):
           for rowIx in xrange(nRows)]
         )
 
-    vec = [float(rowIx) for rowIx in xrange(nColumns)]
+    vec = numpy.array([float(rowIx) for rowIx in xrange(nColumns)])
 
     return df, vec
 
