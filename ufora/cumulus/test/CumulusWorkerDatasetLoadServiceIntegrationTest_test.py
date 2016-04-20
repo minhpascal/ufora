@@ -621,8 +621,6 @@ class CumulusWorkerDatasetLoadServiceIntegrationTest(unittest.TestCase):
         self.computeUsingSeveralWorkers("""
             let v = Vector.range(20000000)
 
-            v.sum()
-
             let isPrime = fun(p) {
                 let x = 2;
                 while (x*x <= p) {

@@ -161,6 +161,10 @@ public:
 										LocalToLocalSchedulerMessage message
 										);
 
+	void handleGlobalToLocalSchedulerMessage(
+										GlobalToLocalSchedulerMessage message
+										);
+
 	PolymorphicSharedPtr<SystemwidePageRefcountTracker> mSystemwidePageRefcountTracker;
 
 	//for each computable computation, 0 or -1 indicating whether we've tried to split it

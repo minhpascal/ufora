@@ -96,7 +96,9 @@ public:
 
 	void triggerFullCheckpointsOnOutstandingComputations(double curTime);
 
-	void handleLocalToGlobalSchedulerMessage(const LocalToGlobalSchedulerMessage& msg);
+	void handleLocalToGlobalSchedulerMessage(
+							const LocalToGlobalSchedulerMessage& msg
+							);
 
 	void handleComputationToGlobalSchedulerMessage(
 				const ComputationToGlobalSchedulerMessage& message,

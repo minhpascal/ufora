@@ -209,7 +209,9 @@ void GlobalSchedulerImplKernel::checkCheckpointsAndStatuses(double curTime)
 	mCheckpointStatuses.checkStatusUpdates(curTime);
 	}
 
-void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(const LocalToGlobalSchedulerMessage& msg)
+void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(
+							const LocalToGlobalSchedulerMessage& msg
+							)
 	{
 	@match LocalToGlobalSchedulerMessage(msg)
 		-| CliqueObserved(pages) ->> {
@@ -229,7 +231,7 @@ void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(const LocalT
 		-| TriggerPageLayoutRecompute() ->> {
 			mTriggerRecomputePageLayoutIfNecessary();
 			}
-		-| ThreadGroupChanged(update) ->> {
+		-| ThreadGroup(ThreadGroupChanged(update), machine) ->> {
 			mThreadGroupLastUpdate[update.group()] = update;
 
 			if (!update.isFinished())
@@ -239,11 +241,31 @@ void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(const LocalT
 				for (auto page: update.droppedPages())
 					mThreadGroupPages[update.group()].erase(page);
 				mThreadGroupSeconds[update.group()] = update.timeElapsed();
+
+				int64_t bytecount = 0;
+				for (auto page: mThreadGroupPages[update.group()])
+					bytecount += page.bytecount();
+
+				if (bytecount > mInitializationParameters.vdmMemoryLimitInBytes() * .1)
+					{
+					mOnCumulusComponentMessageCreated(
+						CumulusComponentMessageCreated(
+							CumulusComponentMessage::GlobalToLocalScheduler(
+								GlobalToLocalSchedulerMessage::GlobalSchedulerToThreadGroup(
+									GlobalSchedulerToThreadGroupMessage::ResetAndActivateChildren(update.group())
+									)
+								),
+							CumulusComponentEndpointSet::SpecificWorker(machine),
+							CumulusComponentType::LocalScheduler()
+							)
+						);
+					}
 				}
 			else
 				{
 				mThreadGroupPages.erase(update.group());
 				mThreadGroupSeconds.erase(update.group());
+				mThreadGroupLastUpdate.erase(update.group());
 				}
 
 			if (abs(curClock() - mLastTotalSecondsDumped) > 1.0)
@@ -254,6 +276,8 @@ void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(const LocalT
 				for (auto grp: mThreadGroupPages)
 					groupsByPrefix[grp.first.prefix()] = grp.first;
 
+				int64_t totalActiveBytes = 0;
+
 				LOGGER_TEST_T log = LOGGER_TEST;
 				for (auto prefixAndGrp: groupsByPrefix)
 					{
@@ -261,13 +285,19 @@ void GlobalSchedulerImplKernel::handleLocalToGlobalSchedulerMessage(const LocalT
 					int64_t bytes = 0;
 					for (auto p: mThreadGroupPages[group])
 						bytes += p.bytecount();
-					log << prefixAndGrp.first << ": " << bytes / 1024 / 1024.0 << " MB and " << mThreadGroupSeconds[group] << " seconds.";
-					log << mThreadGroupLastUpdate[group].childBytes() / 1024 / 1024.0 << " MB";
+					if (bytes)
+						{
+						log << prefixAndGrp.first << ": " << bytes / 1024 / 1024.0 << " MB and " << mThreadGroupSeconds[group] << " seconds.";
+						
+						if (mThreadGroupLastUpdate[group].isActive())
+							log << " ACTIVE";
+						log << "\n";
+						}
 
-					if (mThreadGroupLastUpdate[group].isActive())
-						log << " ACTIVE";
-					log << "\n";
+					totalActiveBytes += bytes;
 					}
+
+				log << "\nTotalActiveBytes = " << totalActiveBytes / 1024 / 1024.0 << " MB\n";
 				}
 			}
 	}

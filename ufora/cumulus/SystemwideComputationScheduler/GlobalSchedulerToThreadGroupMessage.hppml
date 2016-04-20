@@ -16,18 +16,14 @@
 #pragma once
 
 #include "ThreadGroup.hppml"
+#include "ThreadGroupStateUpdate.hppml"
 
 namespace Cumulus {
 
-@type ThreadGroupStateUpdate = 
-    ThreadGroup group,
-    ImmutableTreeVector<Fora::PageId> newPages,
-    ImmutableTreeVector<Fora::PageId> droppedPages,
-    int64_t totalBytesOfPagesReferenced,
-    long timesReset,
-    double timeElapsed,
-    bool isFinished,
-    bool isActive
+@type GlobalSchedulerToThreadGroupMessage = 
+    -| ResetAndActivateChildren of ()
+with
+    ThreadGroup targetGroup
     ;
 
 }
