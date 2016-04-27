@@ -74,7 +74,7 @@ class CumulusService(Stoppable.Stoppable):
         self.cumulusMaxRamCacheSizeOverride = config.cumulusMaxRamCacheMB * 1024*1024
         self.cumulusVectorRamCacheSizeOverride = config.cumulusVectorRamCacheMB * 1024*1024
         self.cumulusThreadCountOverride = config.cumulusServiceThreadCount
-        self.cumulusTrackTcMalloc = config.cumulusTrackTcmalloc
+        self.cumulusTrackTcmalloc = config.cumulusTrackTcmalloc
 
         self.reconnectPersistentCacheIndexViewThreads = []
 
@@ -119,7 +119,7 @@ class CumulusService(Stoppable.Stoppable):
             self.cumulusMaxRamCacheSizeOverride
             )
 
-        if self.cumulusTrackTcMalloc:
+        if self.cumulusTrackTcmalloc:
             logging.info(
                 "CumulusService enabling track-tc-malloc memory with a max cache of %s MB",
                 self.cumulusMaxRamCacheSizeOverride / 1024 / 1024.0

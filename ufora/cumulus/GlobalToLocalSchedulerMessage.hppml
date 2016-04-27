@@ -25,6 +25,7 @@ namespace Cumulus {
     
 @type GlobalToLocalSchedulerMessage = 
     GlobalSchedulerToThreadGroup of GlobalSchedulerToThreadGroupMessage message
+-|  SetActiveThreadGroups of ImmutableTreeMap<MachineId, ImmutableTreeVector<ThreadGroup> > activeGroups
     ;
 
 }

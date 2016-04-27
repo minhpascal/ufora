@@ -38,10 +38,6 @@ class CumulusClientToGlobalSchedulerMessage;
 class CumulusComponentMessageCreated;
 class LocalToGlobalSchedulerMessage;
 
-namespace PageLayoutCalculator {
-class LongTermPageLayoutCalculation;
-}
-
 namespace SystemwideComputationScheduler {
 
 /************
@@ -72,12 +68,6 @@ public:
     void consumePageEvent(const Fora::PageRefcountEvent& inEvent, Cumulus::MachineId onMachineId);
 
 	std::string currentLayoutAsString();
-
-	PolymorphicSharedPtr<PageLayoutCalculator::LongTermPageLayoutCalculation> checkOutLongTermPageLayoutCalculation();
-
-	void checkInUpdatedLongTermPageLayoutCalculation(
-		PolymorphicSharedPtr<PageLayoutCalculator::LongTermPageLayoutCalculation> inResult
-		);
 
 	void setCheckpointStatusInterval(double inInterval);
 
@@ -154,16 +144,6 @@ public:
 	std::map<MachineId, int64_t> mBytesSentToDiskByMachine;
 	
 	PageLayoutCalculator::ActiveNeighborhoods mActiveNeighborhoods;
-
-	std::map<ThreadGroup, std::set<Fora::PageId> > mThreadGroupPages;
-
-	std::map<ThreadGroup, double> mThreadGroupSeconds;
-
-	std::map<ThreadGroup, ThreadGroupStateUpdate> mThreadGroupLastUpdate;
-
-	double mLastTotalSecondsDumped;
-
-	bool hasPageBeenDroppedAcrossEntireSystem_(Fora::PageId page);
 
 	long mSetDesireIndex;
 

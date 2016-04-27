@@ -225,7 +225,9 @@ public:
             mIsFinished(false),
             mIsActive(group.isRoot()),
             mOnSendToGroup(onSendToGroup),
-            mOnSendToScheduler(onSendToScheduler)
+            mOnSendToScheduler(onSendToScheduler),
+            mTotalThreadsBelow(0),
+            mTotalBytesEverReferenced(0)
         {
         }
 
@@ -236,6 +238,13 @@ public:
                 mTimesReset++;
 
                 mPages.resetOwnTouchedPages();
+
+                for (auto p: mCurrentStatistics.pagesCurrentlyBeingUsed())
+                    mPages.touchPageForSelf(p);
+
+                if (mCurrentStatistics.futurePageReads().size() < 10)
+                    for (auto p: mCurrentStatistics.futurePageReads())
+                        mPages.touchPageForSelf(p);
 
                 for (auto child: mUnfinishedChildren)
                     if (mActiveChildren.find(child) == mActiveChildren.end())
@@ -265,6 +274,13 @@ public:
         postStateChange_();
         }
 
+    void handlePageUsedInFuture(Fora::PageId page)
+        {
+        mPages.touchPageForSelf(page);
+
+        postStateChange_();
+        }
+
     void broadcastState()
         {
         std::set<Fora::PageId> newPagesSinceLastBroadcast;
@@ -276,12 +292,17 @@ public:
             mGroup, 
             ImmutableTreeVector<Fora::PageId>(newPagesSinceLastBroadcast), 
             ImmutableTreeVector<Fora::PageId>(droppedPagesSinceLastBroadcast), 
-            mTimesReset,
             mPages.totalBytes(),
+            mTotalBytesEverReferenced,
+            totalThreadsBelow(),
+            mTimesReset,
             totalTimeElapsed(),
             isFinishedAndChildrenFinished(),
             mIsActive
             );
+
+        bool needsFullPagesSentToScheduler = 
+            mStatusAtLastBroadcast && mIsActive && !mStatusAtLastBroadcast->isActive();
 
         mStatusAtLastBroadcast = update;
 
@@ -291,7 +312,11 @@ public:
             mOnSendToGroup(CrossThreadGroupMessage::ThreadGroupChildChanged(*nParent, update));
 
         if (mIsActive)
+            {
+            if (needsFullPagesSentToScheduler)
+                update.newPages() = ImmutableTreeVector<Fora::PageId>(mPages.getPagesReferenced());
             mOnSendToScheduler(ThreadGroupToGlobalSchedulerMessage::ThreadGroupChanged(update));
+            }
         }
 
     void handleNewStatistics(
@@ -303,12 +328,13 @@ public:
             return;
 
         mCurrentStatistics = newStats;
+        mStatus = newStatus;
 
-        for (auto p: newStats.pagesCurentlyBeingUsed())
+        for (auto p: newStats.pagesCurrentlyBeingUsed())
             mPages.touchPageForSelf(p);
 
-        for (auto c: newStats.futureCliques())
-            for (auto p: c)
+        if (newStats.futurePageReads().size() < 10)
+            for (auto p: newStats.futurePageReads())
                 mPages.touchPageForSelf(p);
         
         mOwnTimeElapsed = newStats.estimatedTotalRuntime();
@@ -337,6 +363,15 @@ public:
         postStateChange_();
         }
 
+    void touch(Fora::PageId page)
+        {
+        if (mPagesEverReferenced.find(page) == mPagesEverReferenced.end())
+            {
+            mPagesEverReferenced.insert(page);
+            mTotalBytesEverReferenced += page.bytecount();
+            }
+        }
+
     void handleEvents(
                 ImmutableTreeVector<ComputationEvent> event
                 )
@@ -344,11 +379,15 @@ public:
         for (auto e: event)
             @match ComputationEvent(e)
                 -| PageCreated(p) ->> {
+                    touch(p);
                     mPages.touchPageForSelf(p);
                     }
                 -| Load(pages) ->> {
                     for (auto p: pages)
+                        {
+                        touch(p);
                         mPages.touchPageForSelf(p);
+                        }
                     }
 
         postStateChange_();
@@ -388,7 +427,30 @@ public:
         if (mStatusAtLastBroadcast)
             wasFinishedAtLast = mStatusAtLastBroadcast->isFinished();
 
-        if (totalTimeElapsed() / 2.0 > timeAtLast && 
+        int64_t threadsAtLastBroadcast = 0;
+        if (mStatusAtLastBroadcast)
+            threadsAtLastBroadcast = mStatusAtLastBroadcast->totalLeafThreadsBelow();
+
+        int64_t timesResetAtLast = 0;
+        if (mStatusAtLastBroadcast)
+            timesResetAtLast = mStatusAtLastBroadcast->timesReset();
+
+        if (timesResetAtLast != mTimesReset)
+            return true;
+
+        //increase when the threadcount goes up or if it drops substantially
+        int64_t threads = totalThreadsBelow();
+
+        if (threads != threadsAtLastBroadcast && (
+                    threads > threadsAtLastBroadcast || 
+                    threads <= (threadsAtLastBroadcast - 1) * 3/4 || 
+                    threads == 0 || 
+                    threadsAtLastBroadcast == 0
+                    )
+                )
+            return true;
+
+        if (totalTimeElapsed() * 3/4 > timeAtLast && 
                 totalTimeElapsed() - timeAtLast > kMinTimeElapsedToBroadcast)
             return true;
 
@@ -424,6 +486,9 @@ public:
                     )
         {
         ThreadGroup group = update.group();
+
+        for (auto page: update.newPages())
+            touch(page);
 
         ImmutableTreeVector<Fora::PageId> newPages = update.newPages();
         ImmutableTreeVector<Fora::PageId> droppedPages = update.droppedPages();
@@ -463,9 +528,28 @@ public:
                 mPages.touchChildPagesForSelf(group);
 
             mPages.dropChild(group);
+            mTotalThreadsBelowPerChild.erase(group);
+            mActiveChildren.erase(group);
             }
+        else
+            mTotalThreadsBelowPerChild[group] = update.totalLeafThreadsBelow();
 
         postStateChange_();
+        }
+
+    int64_t totalThreadsBelow() const
+        {
+        int64_t res = 0;
+
+        for (auto childAndThreads: mTotalThreadsBelowPerChild)
+            if (mActiveChildren.find(childAndThreads.first) == mActiveChildren.end())
+                res += childAndThreads.second;
+
+        //if we're a leaf, we want to return 1. Otherwise, the sum of our children.
+        return std::max<int64_t>(
+            (mStatus.isComputable() || mStatus.isBlockedOnVectorLoad()) ? 1 : 0, 
+            res
+            );
         }
 
     int64_t totalBytes() const
@@ -489,6 +573,12 @@ private:
 
     bool mIsFinished;
 
+    int64_t mTotalThreadsBelow;
+
+    int64_t mTotalBytesEverReferenced;
+
+    std::set<Fora::PageId> mPagesEverReferenced;
+
     ThreadGroup mGroup;
 
     long mTimesReset;
@@ -502,6 +592,8 @@ private:
     PagesUsed mPages;
 
     map<ThreadGroup, double> mChildTimes;
+
+    map<ThreadGroup, int64_t> mTotalThreadsBelowPerChild;
 
     std::set<ThreadGroup> mFinishedChildren;
 

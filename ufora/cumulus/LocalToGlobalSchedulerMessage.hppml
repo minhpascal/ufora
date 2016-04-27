@@ -23,17 +23,6 @@
 namespace Cumulus {
     
 @type LocalToGlobalSchedulerMessage = 
-    -| CliqueObserved of ImmutableTreeSet<Fora::PageId> pages
-    -| SetPageLoad of 
-            ComputationId computation, 
-            MachineId machine, 
-            ImmutableTreeSet<Fora::PageId> pages, 
-            double load,
-            bool pagesLookUnrepresented
-    -| ErasePageLoad of 
-            ComputationId computation,
-            MachineId machine
-    -| RecordObservedLoad of ImmutableTreeSet<Fora::PageId> pages, double load
     -| TriggerPageLayoutRecompute of ()
     -| ThreadGroup of 
             ThreadGroupToGlobalSchedulerMessage msg,

@@ -31,6 +31,7 @@
 #include "../FORA/VectorDataManager/BigVectorSliceSet.hppml"
 #include "../FORA/Serialization/ForaValueSerializationStream.hppml"
 #include "../core/PolymorphicSharedPtrBinder.hpp"
+#include "SystemwideComputationScheduler/ThreadGroup.hppml"
 #include "SystemwideComputationScheduler/RuntimePrediction/RuntimePredictionValue.hppml"
 #include "SystemwideComputationScheduler/RuntimePrediction/RuntimePredictionSignature.hppml"
 
@@ -511,7 +512,7 @@ public:
 			mInterruptTriggered(false),
 			mTimesComputedButMadeNoProgress(0),
 			mIsPagingDisabled(false),
-			mTimesCalculatedCliques(0)
+			mTimesCalculatedFuturePages(0)
 		{
 		mExecutionContext->initialize();
 		*mExecutionContext->getConfiguration() = config;
@@ -545,17 +546,17 @@ public:
 		mComputationStatisticsOutsideOfEC = ComputationStatistics();
 		mCumulativeTimeAtLastSplitAttempt = 0.0;
 		mIsComputing = false;
-		mTotalTimeSpentCalculatingCliques = 0.0;
-		mTimesCalculatedCliques = 0;
+		mTotalTimeSpentCalculatingFuturePages = 0.0;
+		mTimesCalculatedFuturePages = 0;
 		mCurrentPageLoadGroup = emptyTreeSet();
-		mCurrentCliques = emptyTreeVec();
+		mFuturePageReads = emptyTreeVec();
 		
 			{
 			boost::mutex::scoped_lock lock(mComputationEventsMutex);
 			mComputationEvents.clear();
 			}
 
-		mFutureCliqueFinder.reset();
+		mFuturePageFinder.reset();
 		mExecutionContext->teardown();
 		mExecutionContext->resetMemoryPoolPageSize();
 		}
@@ -1240,8 +1241,8 @@ public:
 
 	bool postComputationStateUpdate_(CreatedComputations& ioComputations, hash_type& ioGuid)
 		{
-		mFutureCliqueFinder.reset();
-		mCurrentCliques = emptyTreeVec();
+		mFuturePageFinder.reset();
+		mFuturePageReads = emptyTreeVec();
 
 		if (mOutsideEcValues.getUnconsumedDefinition())
 			{
@@ -1330,7 +1331,7 @@ public:
 				mExecutionContext->getVectorLoad()
 				);
 
-			updateCurrentCliques();
+			updateFuturePageReads();
 			}
 			else
 		if (mExecutionContext->isFinished())
@@ -1362,24 +1363,24 @@ public:
 		}
 
 
-	void updateCurrentCliques()
+	void updateFuturePageReads()
 		{
-		mFutureCliqueFinder.reset(
+		mFuturePageFinder.reset(
 			new FuturesCliqueFinder::CliqueFinder(
 				mExecutionContext
 				)
 			);
 
-		mTotalTimeSpentCalculatingCliques = 0;
+		mTotalTimeSpentCalculatingFuturePages = 0;
 
-		ImmutableTreeVector<ImmutableTreeSet<Fora::PageId> > cliques;
+		ImmutableTreeVector<Fora::PageId> pages;
 
 		try {
 			double t0 = curClock();
-			mFutureCliqueFinder->getRootTask()->rollForwardUntilACliqueIsProduced(1, 100);
-			mTotalTimeSpentCalculatingCliques += curClock() - t0;
+			mFuturePageFinder->getRootTask()->rollForwardUntilACliqueIsProduced(10, 100);
+			mTotalTimeSpentCalculatingFuturePages += curClock() - t0;
 
-			cliques = mFutureCliqueFinder->cliques();
+			pages = mFuturePageFinder->pages();
 			}
 		catch(std::logic_error& e)
 			{
@@ -1390,15 +1391,15 @@ public:
 			LOG_ERROR << "FuturesCliqueFinder threw an unknown exception";
 			}
 
-		mCurrentCliques = cliques;
+		mFuturePageReads = pages;
 		}
 
-	ImmutableTreeVector<ImmutableTreeSet<Fora::PageId> > continueToSearchForCliques(double maxTimeElapsed)
+	ImmutableTreeVector<Fora::PageId> continueToSearchForFuturePages(double maxTimeElapsed)
 		{
-		if (!mFutureCliqueFinder)
+		if (!mFuturePageFinder)
 			return emptyTreeVec();
 
-		mFutureCliqueFinder.reset(
+		mFuturePageFinder.reset(
 			new FuturesCliqueFinder::CliqueFinder(
 				mExecutionContext
 				)
@@ -1406,22 +1407,22 @@ public:
 		
 		double t0 = curClock();
 
-		ImmutableTreeVector<ImmutableTreeSet<Fora::PageId> > cliques;
+		ImmutableTreeVector<Fora::PageId> pages;
 
 		try {
-			mTimesCalculatedCliques++;
+			mTimesCalculatedFuturePages++;
 
-			Ufora::math::Random::Uniform<float> rand( (mOwnComputationId.guid() + hash_type(mTimesCalculatedCliques))[0] + 1 );
+			Ufora::math::Random::Uniform<float> rand( (mOwnComputationId.guid() + hash_type(mTimesCalculatedFuturePages))[0] + 1 );
 
 			for (long k = 0; k < 1000;k++)
 				rand();
 
-			mFutureCliqueFinder->searchFromTopOfTreeReturningCliquesCreated(
+			mFuturePageFinder->searchFromTopOfTreeReturningCliquesCreated(
 				curClock() + maxTimeElapsed, 
 				rand
 				);
 
-			cliques = mFutureCliqueFinder->cliques();
+			pages = mFuturePageFinder->pages();
 			}
 		catch(std::logic_error& e)
 			{
@@ -1432,16 +1433,16 @@ public:
 			LOG_ERROR << "FuturesCliqueFinder threw an unknown exception";
 			}
 
-		mTotalTimeSpentCalculatingCliques += curClock() - t0;
+		mTotalTimeSpentCalculatingFuturePages += curClock() - t0;
 
 		LOG_DEBUG << mOwnComputationId.guid() << ": after " 
-			<< mTotalTimeSpentCalculatingCliques << ", cliques are " 
-			<< cliques.size()
+			<< mTotalTimeSpentCalculatingFuturePages << ", pages are " 
+			<< pages.size()
 			<< ".\n"
-			<< mFutureCliqueFinder->getRootTask()->toString()
+			<< mFuturePageFinder->getRootTask()->toString()
 			;
 
-		return cliques;
+		return pages;
 		}
 
 	bool isExternalIoTaskCacheLoad_(ImplValContainer cacheLoadRequest)
@@ -2025,7 +2026,7 @@ public:
 			valueStream.serialize(mIsRejoinedSplitThatHasNotComputed);
 
 			valueStream.serialize(mCurrentPageLoadGroup);
-			valueStream.serialize(mCurrentCliques);
+			valueStream.serialize(mFuturePageReads);
 
 			valueStream.serialize(mLastPersistedCheckpointTimestamp);
 			valueStream.serialize(mCheckpointStatusTimestamp);
@@ -2037,7 +2038,7 @@ public:
 				valueStream.serialize(mComputationEvents);
 				}
 
-			valueStream.serialize(mTimesCalculatedCliques);
+			valueStream.serialize(mTimesCalculatedFuturePages);
 
 			valueStream.serialize(mIsPagingDisabled);
 			valueStream.serialize(mTimesReset);
@@ -2091,13 +2092,13 @@ public:
 		valueStream.deserialize(mCumulativeTimeAtLastSplitAttempt);
 		valueStream.deserialize(mIsRejoinedSplitThatHasNotComputed);
 		valueStream.deserialize(mCurrentPageLoadGroup);
-		valueStream.deserialize(mCurrentCliques);
+		valueStream.deserialize(mFuturePageReads);
 		valueStream.deserialize(mLastPersistedCheckpointTimestamp);
 		valueStream.deserialize(mCheckpointStatusTimestamp);
 		valueStream.deserialize(mLastBroadcastCheckpointStatus);
 		valueStream.deserialize(mChildCheckpointStatuses);
 		valueStream.deserialize(mComputationEvents);
-		valueStream.deserialize(mTimesCalculatedCliques);
+		valueStream.deserialize(mTimesCalculatedFuturePages);
 		valueStream.deserialize(mIsPagingDisabled);
 		valueStream.deserialize(mTimesReset);
 
@@ -2213,7 +2214,7 @@ public:
 			0,
 			0,
 			mCurrentPageLoadGroup,
-			mCurrentCliques,
+			mFuturePageReads,
 			0
 			);
 		}
@@ -2328,19 +2329,19 @@ private:
 
 	double mComputingStartTime;
 
-	double mTotalTimeSpentCalculatingCliques;
+	double mTotalTimeSpentCalculatingFuturePages;
 
-	long mTimesCalculatedCliques;
+	long mTimesCalculatedFuturePages;
 
 	ImmutableTreeSet<Fora::PageId> mCurrentPageLoadGroup;
 
-	ImmutableTreeVector<ImmutableTreeSet<Fora::PageId> > mCurrentCliques;
+	ImmutableTreeVector<Fora::PageId> mFuturePageReads;
 
 	std::vector<ComputationEvent> mComputationEvents;
 
 	boost::mutex mComputationEventsMutex;
 
-	PolymorphicSharedPtr<FuturesCliqueFinder::CliqueFinder> mFutureCliqueFinder;
+	PolymorphicSharedPtr<FuturesCliqueFinder::CliqueFinder> mFuturePageFinder;
 };
 
 
@@ -2537,9 +2538,9 @@ void ComputationState::unloadAllVectorHandles()
 	mImpl->unloadAllVectorHandles();
 	}
 
-ImmutableTreeVector<ImmutableTreeSet<Fora::PageId> > ComputationState::continueToSearchForCliques(double maxTimeElapsed)
+ImmutableTreeVector<Fora::PageId> ComputationState::continueToSearchForFuturePages(double maxTimeElapsed)
 	{
-	return mImpl->continueToSearchForCliques(maxTimeElapsed);
+	return mImpl->continueToSearchForFuturePages(maxTimeElapsed);
 	}
 
 ImmutableTreeVector<ComputationEvent> ComputationState::extractRecentEvents()

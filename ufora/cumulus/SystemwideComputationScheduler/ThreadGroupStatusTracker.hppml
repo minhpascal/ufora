@@ -61,23 +61,20 @@ public:
                 );
         }
 
-    void handleGlobalToLocalSchedulerMessage(const GlobalToLocalSchedulerMessage& in)
+    void handleGlobalToLocalSchedulerMessage(const GlobalSchedulerToThreadGroupMessage& m)
         {
-        @match GlobalToLocalSchedulerMessage(in)
-            -| GlobalSchedulerToThreadGroup(m) ->> {
-                ThreadGroup grp = m.targetGroup();
+        ThreadGroup grp = m.targetGroup();
 
-                if (mFinishedGroups.find(grp) != mFinishedGroups.end())
-                    return;
+        if (mFinishedGroups.find(grp) != mFinishedGroups.end())
+            return;
 
-                ensureThreadGroup(grp);
+        ensureThreadGroup(grp);
 
-                mStates[grp]->handleGlobalSchedulerToThreadGroupMessage(m);
+        mStates[grp]->handleGlobalSchedulerToThreadGroupMessage(m);
 
-                removeGroupIfFinished(grp);
+        removeGroupIfFinished(grp);
 
-                drainPendingMessages();
-                }
+        drainPendingMessages();
         }
 
     void handleLocalToLocalSchedulerMessage(const LocalToLocalSchedulerMessage& in)
@@ -88,6 +85,9 @@ public:
                 }
             -| ThreadGroupEvents(group, events) ->> {
                 handleComputationEventsLocally(group, events);
+                }
+            -| ThreadGroupPageUsedInFuture(group, page) ->> {
+                handlePageUsedInFutureLocally(group, page);
                 }
             -| CrossThreadGroup(msg) ->> {
                 if (mFinishedGroups.find(msg.destinationGroup()) != mFinishedGroups.end())
@@ -137,7 +137,41 @@ public:
                     )
                 );
         }
+
+    void pageUsedInFuture(ComputationId computation, Fora::PageId page)
+        {
+        ThreadGroup group = ThreadGroup::groupFor(computation);
+
+        MachineId targetMachine = machineFor(group);
+
+        if (targetMachine == mOwnMachine)
+            handlePageUsedInFutureLocally(group, page);
+        else
+            mOnSendLocal(
+                LocalToLocalSchedulerMessage::ThreadGroupPageUsedInFuture(
+                    mOwnMachine, 
+                    targetMachine, 
+                    group, 
+                    page
+                    )
+                );
+        }
+
 private:
+    void handlePageUsedInFutureLocally(ThreadGroup group, Fora::PageId page)
+        {
+        if (mFinishedGroups.find(group) != mFinishedGroups.end())
+            return;
+
+        ensureThreadGroup(group);
+    
+        mStates[group]->handlePageUsedInFuture(page);
+        
+        removeGroupIfFinished(group);
+
+        drainPendingMessages();        
+        }
+
     void removeGroupIfFinished(ThreadGroup group)
         {
         auto it = mStates.find(group);
