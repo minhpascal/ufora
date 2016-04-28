@@ -410,12 +410,18 @@ ImplValContainer    createFORAVector(
 	std::vector<JOV> jovs(count);
 	if (indexData)
 		{
+		LOG_DEBUG << "createFORAVector: 2";
+		LOG_DEBUG << "createFORAVector: 3";
 		for (uword_t k = 0; k < count; ++k)
 			{
+			LOG_DEBUG << "createFORAVector: 3.0";
 			uint8_t index = indexData[k];
+			LOG_DEBUG << "createFORAVector: 3.1: index = " << (unsigned int)index;
 			lassert(index < outputElementTypes.size());
 			const Type& t = outputElementTypes[index];
+			LOG_DEBUG << "createFORAVector: 3.2";
 			slots[k] = alignedDataVectors[index] + (k * t.alignedSize());
+			LOG_DEBUG << "createFORAVector: 3.3";
 			jovs[k] = JOV::OfType(t);
 			jovSet.insert(jovs[k]);
 			}
@@ -456,6 +462,7 @@ ImplValContainer    createFORAVector(
 			ExecutionContext::currentExecutionContext()->newVectorHash()
 			)
 		);
+	LOG_DEBUG << "createFORAVector: 6";
 	return ImplValContainerUtilities::createVector(vector);
 	}
 
@@ -467,6 +474,8 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 						uint64_t			outputTypesCount
 						)
 	{
+	LOG_DEBUG << "executeKernel(2): 1";
+
 	Type closureType = inApplyObject.type();
 	Type inputElementType;
 	const std::vector<Type>* outputElementTypes;
@@ -490,6 +499,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 
 	lassert(inApplyObject.type().isClass());
 	lassert(inSourceVector.type().isVector());
+	LOG_DEBUG << "executeKernel(2): 2";
 
 	TypedFora::Abi::VectorRecord sourceVectorHandle = inSourceVector.cast<TypedFora::Abi::VectorRecord>();
 
@@ -515,13 +525,18 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 	uword_t elementCount = sourceVectorHandle.size();
 	lassert(ExecutionContext::currentExecutionContext());
 	MemoryPool* pool = ExecutionContext::currentExecutionContext()->getMemoryPool();
+	LOG_DEBUG << "executeKernel(2): 3";
 
 	//create a aligned vectors
 	AlignmentManager alignMgr;
+	LOG_DEBUG << "executeKernel(2): 3.0";
 	uint8_t* rawClosureData = alignMgr.getHandleToAlignedData(inApplyObject);
+	LOG_DEBUG << "executeKernel(2): 3.1";
 	uint8_t* rawInVecData   = alignMgr.getHandleToAlignedData(inSourceVector);
+	LOG_DEBUG << "executeKernel(2): 3.2";
 	if (!rawInVecData || (!rawClosureData && inApplyObject.type().size() > 0))
 		return ImplValContainer(CSTValue::blankOf(Type::Vector()));
+	LOG_DEBUG << "executeKernel(2): 4";
 
 	uword_t outputElementTypesCount = outputElementTypes->size();
 	uint8_t* rawOutVecIndex = nullptr;
@@ -539,10 +554,12 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 		rawOutVecDataVectors[k] = ptr;
 		outputElementTypeSizes[k] = t.alignedSize();
 		}
+	LOG_DEBUG << "executeKernel(2): 5";
 
 	lassert(sourceVectorHandle.dataPtr()->unpagedValues());
 	lassert(sourceVectorHandle.dataPtr()->unpagedValues()->size() == elementCount);
 
+	LOG_DEBUG << "executeKernel(2): 6";
 	mCUDAState->executeFunction(
 		inKernelName,
 		rawClosureData,
@@ -555,6 +572,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 		rawOutVecIndex,
 		indexElementType.alignedSize()
 		);
+	LOG_DEBUG << "executeKernel(2): 7";
 	auto res = createFORAVector(
 					rawOutVecIndex,
 					indexElementType.alignedSize(),
@@ -562,6 +580,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 					rawOutVecDataVectors,
 					elementCount,
 					pool);
+	LOG_DEBUG << "executeKernel(2): 8";
 
 	return res;
 	}
@@ -651,6 +670,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 				throw UnableToConvertToPTX(msg.str());
 				}
 			for (auto& jov : frame->exits().resultPart().vals())
+				LOG_DEBUG << "result jov : " << prettyPrintString(jov);
 
 			if (frame->exits().throwPart().size() > 0)
 				throw UnableToConvertToPTX("Code throws exceptions.");
@@ -677,12 +697,14 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 			//we need to wrap them up into a single typed value
 			bool	needsReturnTypeModification = false;
 			TypedFora::Converter converter;
+			LOG_DEBUG << "executeKernel: 1";
 
 			NativeCFG cfg = converter.convertCallable(Runtime::getRuntime().getTypedForaCompiler()->getDefinition(res->second));
 
 			lassert(res->first == TypedFora::BlockID::entry());
 
 			cfg = transform(cfg, StripCallbackDataTransformer());
+			LOG_DEBUG << "executeKernel: 2";
 
 			while (cfg.externalBranches().size())
 				{
@@ -704,11 +726,16 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 					nameOfSubbranch
 					);
 				}
+			LOG_DEBUG << "executeKernel: 3";
 
 			try {
 				//a lot simpler when all variables are unique
+				LOG_DEBUG << "executeKernel: 4";
+				LOG_DEBUG << "CFG:\n\n" << prettyPrintString(cfg);
 				cfg = NativeCFGTransforms::optimize(cfg, Runtime::getRuntime().getConfig());
+				LOG_DEBUG << "executeKernel: 5";
 				cfg = NativeCFGTransforms::renameVariables(cfg);
+				LOG_DEBUG << "executeKernel: 6";
 
 				std::vector<Type> outputTypes(frame->exits().resultPart().size());
 					{
@@ -726,6 +753,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 					}
 
 				define(kernelName, cfg, vecElementType, outputTypes);
+				LOG_DEBUG << "executeKernel: 7";
 				}
 			catch(std::logic_error e)
 				{
@@ -734,5 +762,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 				}
 			}
 		}
+	LOG_DEBUG << "executeKernel: 8";
 	return executeKernel(kernelName, inApplyObject, inSourceVector);
 	}

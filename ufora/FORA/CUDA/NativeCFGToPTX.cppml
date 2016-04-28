@@ -636,6 +636,8 @@ private:
 				return "";
 				}
 			-|	Atom(nativeType, ptxType, regName) ->> {
+				LOG_DEBUG << "writeValToPtrFromReg. nativeType: " << prettyPrintString(nativeType)
+						<< ", ptxType: " << ptxType;
 				auto pointedType = nativeType.deref();
 				return writeValueToPointer(regName, pointedType, inValue, offset);
 				}
@@ -695,6 +697,7 @@ private:
 				return tr.str();
 				}
 			-|	Constant(expr) ->> {
+				LOG_DEBUG << "constant found in writeValueToPointer: " << expr;
 				string ptxType = nativeTypeToPTXType(pointedType, false, true);
 				return
 					"st.global." + ptxType +
