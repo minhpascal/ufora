@@ -282,7 +282,7 @@ public:
 
 	void logState(std::string message, execution_context_impl_ptr context, bool force = false)
 		{
-		if (curClock() - 10.0 > mLastTimeLogged || mTimesLimitChecked % 1000 == 0 || force)
+		if (curClock() - 10.0 > mLastTimeLogged || mTimesLimitChecked % 10000 == 0 || force)
 			{
 			long contextsWithPagesMapped = 0;
 			
@@ -319,9 +319,14 @@ public:
 			if ((mMemoryManager->totalBytesUsedByExecutionContextsIncludingPagelets() -
 					 mMemoryManager->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
 					mMaxTotalBytes * .25)
+				{
 				log << "too much pagelet data in ECs. min page size is "
-					<< getCurrentLargeVectorHandlePageSize(nullptr) / 1024 / 1024.0 << " MB."
+					<< getCurrentLargeVectorHandlePageSize(nullptr) / 1024 / 1024.0 << " MB.\n"
 					;
+				for (auto c: mContexts)
+					log << "\t" << c << " -> "
+						<< c->getExecutionContextMemoryPool()->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB pagelets\n";
+				}
 
 			log << endl;
 
