@@ -195,11 +195,11 @@ public:
 		return false;
 		}
 
-	void checkGcStatus_(std::string reason)
+	void checkGcStatus_(std::string reason, execution_context_impl_ptr context)
 		{
 		mTimesLimitChecked++;
 
-		logState("checkGcStatus -- " + reason);
+		logState("checkGcStatus -- " + reason, context);
 
 		while (mShouldDropUnreferencedPagesWhenFull &&  
 					mVectorPages->hasUnreferencedPages() && 
@@ -280,7 +280,7 @@ public:
 			}
 		}
 
-	void logState(std::string message, bool force = false)
+	void logState(std::string message, execution_context_impl_ptr context, bool force = false)
 		{
 		if (curClock() - 10.0 > mLastTimeLogged || mTimesLimitChecked % 1000 == 0 || force)
 			{
@@ -293,7 +293,10 @@ public:
 			LOGGER_INFO_T log = (mExecutionIsBlocked & (curClock() - mExecutionStoppedTime > 10.0) ?
 					LOGGER_CRITICAL : LOGGER_INFO);
 
-			log << "VDM " << (void*)this << " (" << mPageRefcountTracker->getMachineId() << ") -- " << message << endl 
+			log << "VDM " << (void*)this << " (" << mPageRefcountTracker->getMachineId() << ") -- " 
+				<< message 
+				<< " on context " << context
+				<< endl
 				<< "\tTimes checked = " << mTimesLimitChecked << endl
 				<< "\tGC events = " << mGcEventCount << endl
 				<< "\tTotal memory usage = " << curTotalUsedBytes() / 1024 / 1024.0 << endl
@@ -312,6 +315,13 @@ public:
 
 			if (mExecutionIsBlocked)
 				log << " for " << curClock() - mExecutionStoppedTime << " seconds.";
+
+			if ((mMemoryManager->totalBytesUsedByExecutionContextsIncludingPagelets() -
+					 mMemoryManager->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+					mMaxTotalBytes * .25)
+				log << "too much pagelet data in ECs. min page size is "
+					<< getCurrentLargeVectorHandlePageSize(nullptr) / 1024 / 1024.0 << " MB."
+					;
 
 			log << endl;
 
@@ -358,7 +368,7 @@ public:
 		{
 		mGcEventCount++;
 
-		checkGcStatus_("checkDesiredEcCleanupStatus");
+		checkGcStatus_("checkDesiredEcCleanupStatus", context);
 
 		lassert(mContextsActuallyGcing.find(context) == mContextsActuallyGcing.end());
 
@@ -371,7 +381,9 @@ public:
 		if ((mMemoryManager->totalBytesUsedByExecutionContextsIncludingPagelets() -
 				 mMemoryManager->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
 				mMaxTotalBytes * .25)
+			{
 			outWantPageLargeVectors = true;
+			}
 
 		if (contextNeedsGc_(context))
 			{
@@ -519,6 +531,11 @@ public:
 				mMemoryLimit * mLoadRatio)
 			result /= 4;
 
+		if ((mMemoryManager->totalBytesUsedByExecutionContextsIncludingPagelets() -
+						 mMemoryManager->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+						mMaxTotalBytes * .25)
+			return 0;
+
 		return std::max<int64_t>(result, mMemoryManager->getSlabSize());
 		}
 
@@ -562,7 +579,7 @@ public:
 			<< ". total blocked = " << mTotalExecutionContextsBlocked
 			;
 
-		checkGcStatus_("executionContextBlockedOnMemoryAllocation");
+		checkGcStatus_("executionContextBlockedOnMemoryAllocation", executionContext);
 		}
 
 	void executionContextUnblockedOnMemoryAllocation(

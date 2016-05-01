@@ -519,7 +519,7 @@ void VectorDataManagerImpl::resumeMappingOfVectorPages()
 
 void VectorDataManagerImpl::checkGcStatus_(std::string reason)
 	{
-	mGcStatus.checkGcStatus_(reason);
+	mGcStatus.checkGcStatus_(reason, nullptr);
 	}
 
 bool VectorDataManagerImpl::shouldEcCleanupRetry(execution_context_impl_ptr context)
