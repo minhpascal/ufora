@@ -21,6 +21,7 @@
 #include "../Core/ExecutionContext.hppml"
 #include "../Core/MemoryPool.hpp"
 #include "../Core/ImplValContainerUtilities.hppml"
+#include "../Native/NativeCFGTransforms/ConvertForGPUExecution.hppml"
 #include "../Native/NativeCFGTransforms/Transforms.hppml"
 #include "../Native/NativeCode.hppml"
 #include "../Runtime.hppml"
@@ -40,6 +41,8 @@
 using TypedFora::Abi::VectorHandle;
 using TypedFora::Abi::VectorRecord;
 using Fora::Interpreter::ExecutionContext;
+
+constexpr uint8_t GPU_EXCEPTION_INDEX = 0xFF;
 
 class CUDAExecutionContextInternalState {
 public:
@@ -416,8 +419,12 @@ ImplValContainer    createFORAVector(
 			{
 			LOG_DEBUG << "createFORAVector: 3.0";
 			uint8_t index = indexData[k];
+			if (index == GPU_EXCEPTION_INDEX)
+				return ImplValContainerUtilities::createVector(VectorRecord());
+
 			LOG_DEBUG << "createFORAVector: 3.1: index = " << (unsigned int)index;
-			lassert(index < outputElementTypes.size());
+			lassert_dump(index < outputElementTypes.size(),
+					"index = " << (long)index << ", elmtTypes = " << outputElementTypes.size());
 			const Type& t = outputElementTypes[index];
 			LOG_DEBUG << "createFORAVector: 3.2";
 			slots[k] = alignedDataVectors[index] + (k * t.alignedSize());
@@ -470,8 +477,7 @@ ImplValContainer    createFORAVector(
 ImplValContainer	CUDAExecutionContext::executeKernel(
 						const std::string&	inKernelName,
 						ImplValContainer	inApplyObject,
-						ImplValContainer	inSourceVector,
-						uint64_t			outputTypesCount
+						ImplValContainer	inSourceVector
 						)
 	{
 	LOG_DEBUG << "executeKernel(2): 1";
@@ -479,9 +485,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 	Type closureType = inApplyObject.type();
 	Type inputElementType;
 	const std::vector<Type>* outputElementTypes;
-
-	lassert_dump(outputTypesCount < 255, "Too many output types for 8bit unsigned integer to encode");
-	Type indexElementType = Type::Integer(8, false);
+	bool mayThrowException = false;
 
 		{
 		boost::recursive_mutex::scoped_lock lock(mMutex);
@@ -489,11 +493,15 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 		//verify that this kernel exists
 		lassert_dump(
 				mInputOutputTypesByName.find(inKernelName) != mInputOutputTypesByName.end(),
-				"used kernel " << inKernelName << " without definining it."
+				"used kernel " << inKernelName << " without defining it."
 				);
-
+		lassert_dump(
+				mMayThrowException.find(inKernelName) != mMayThrowException.end(),
+				"used kernel " << inKernelName << " without defining mMayThrowException for it."
+				);
 		inputElementType = mInputOutputTypesByName[inKernelName].first;
 		outputElementTypes = &mInputOutputTypesByName[inKernelName].second;
+		mayThrowException = mMayThrowException[inKernelName];
 		lassert(outputElementTypes);
 		}
 
@@ -539,8 +547,12 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 	LOG_DEBUG << "executeKernel(2): 4";
 
 	uword_t outputElementTypesCount = outputElementTypes->size();
+	lassert_dump(outputElementTypesCount < GPU_EXCEPTION_INDEX, // reserve value 0xFF to flag exceptions
+			"Too many output types for 8bit unsigned integer to encode");
+	Type indexElementType = Type::Integer(8, false);
+
 	uint8_t* rawOutVecIndex = nullptr;
-	if (outputElementTypesCount > 1)
+	if (outputElementTypesCount > 1 || mayThrowException)
 		rawOutVecIndex = alignMgr.allocateAlignedData(indexElementType, elementCount);
 
 	std::vector<uint8_t*> rawOutVecDataVectors(outputElementTypesCount);
@@ -622,6 +634,7 @@ public:
 		}
 };
 
+
 ImplValContainer	CUDAExecutionContext::executeKernel(
 						ImplValContainer	inApplyObject,
 						ImplValContainer	inSourceVector
@@ -672,9 +685,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 			for (auto& jov : frame->exits().resultPart().vals())
 				LOG_DEBUG << "result jov : " << prettyPrintString(jov);
 
-			if (frame->exits().throwPart().size() > 0)
-				throw UnableToConvertToPTX("Code throws exceptions.");
-
 			auto res = reasoner->compileEntrypointForApply(JOVT::Unnamed(signatureJOVs));
 
 			if (!res)
@@ -699,7 +709,9 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 			TypedFora::Converter converter;
 			LOG_DEBUG << "executeKernel: 1";
 
-			NativeCFG cfg = converter.convertCallable(Runtime::getRuntime().getTypedForaCompiler()->getDefinition(res->second));
+			NativeCFG cfg =
+					converter.convertCallable(
+							Runtime::getRuntime().getTypedForaCompiler()->getDefinition(res->second));
 
 			lassert(res->first == TypedFora::BlockID::entry());
 
@@ -727,7 +739,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 					);
 				}
 			LOG_DEBUG << "executeKernel: 3";
-
 			try {
 				//a lot simpler when all variables are unique
 				LOG_DEBUG << "executeKernel: 4";
@@ -748,12 +759,15 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 								"return type at index " << k << " of CUDA kernel '"
 									<< kernelName << "' is missing");
 						outputTypes[k] = *t;
+						LOG_DEBUG << " output_type[" << k << "] = " << prettyPrintString(*t);
 						++k;
 						}
 					}
+				cfg = NativeCFGTransforms::convertForGpuExecution(cfg, frame->exits().resultPart().size());
+				mMayThrowException[kernelName] = true;
 
 				define(kernelName, cfg, vecElementType, outputTypes);
-				LOG_DEBUG << "executeKernel: 7";
+				LOG_DEBUG << "executeKernel: 8";
 				}
 			catch(std::logic_error e)
 				{
@@ -762,6 +776,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 				}
 			}
 		}
-	LOG_DEBUG << "executeKernel: 8";
+	LOG_DEBUG << "executeKernel: 9";
 	return executeKernel(kernelName, inApplyObject, inSourceVector);
 	}
