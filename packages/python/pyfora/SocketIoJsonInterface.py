@@ -65,7 +65,7 @@ class SocketIoJsonInterface(object):
         with self.lock:
             t0 = time.time()
             self.connection_status.status = ConnectionStatus.connecting
-            self.socketIO = SocketIO(self.url)
+            self.socketIO = SocketIO(self.url, wait_for_connection=False)
             self.reactorThread = threading.Thread(target=self.socketIO.wait)
             
             if isinstance(self.socketIO._transport_instance, WebsocketTransport):
