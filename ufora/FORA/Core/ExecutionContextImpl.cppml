@@ -1093,6 +1093,9 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 				<< " handles."
 				;
 
+		if (verbose)
+			LOG_TEST << "Visited " << state.mVectorHandlesVisited.size() << " vector handles";
+
 		state.cleanup();
 
 		result = pagerState.mPagedVectorCount;
