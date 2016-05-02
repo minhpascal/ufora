@@ -33,7 +33,7 @@ public:
 				}
 			;
 		}
-
+private:
 	uword_t mMaxIdx;
 };
 
@@ -68,8 +68,26 @@ public:
 	NativeExpression	processDown(const NativeExpression& t, bool& cont) const
 		{
 		@match NativeExpression(t)
-			-|	Alloc(x, y, z) ->> {
-				return NativeExpression::Return(0, NativeConstant::Nothing().expr());
+			-|	Alloc(_) ->> {
+				return mUnsupported;
+				}
+			-|	Selector(_) ->> {
+				return mUnsupported;
+				}
+			-|	ElementAddress(_) ->> {
+				return mUnsupported;
+				}
+			-|	CallLibraryFunction(_) ->> {
+				return mUnsupported;
+				}
+			-|	Continuations(_) ->> {
+				return mUnsupported;
+				}
+			-|	FollowContinuation(_) ->> {
+				return mUnsupported;
+				}
+			-|	Halt()	->> {
+				return mUnsupported;
 				}
 			-|	_ ->> {
 				return t;
@@ -77,6 +95,12 @@ public:
 			;
 		}
 
+	StripIncompatibleForGpuTransformer()
+		{
+		mUnsupported = NativeExpression::Return(0, NativeConstant::Nothing().expr());
+		}
+private:
+	NativeExpression mUnsupported;
 };
 
 NativeCFG convertForGpuExecution(const NativeCFG& in, unsigned int resultPartSize)
