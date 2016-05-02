@@ -311,7 +311,8 @@ class CumulusTestCases(object):
                 dumpFun = self.dumpSchedulerEventStreams
                 dumpFun()
             except:
-                logging.warn("Wanted to dump CumulusWorkerEvents, but couldn't");
+                import traceback
+                logging.warn("Wanted to dump CumulusWorkerEvents, but couldn't: %s", traceback.format_exc());
 
 
         self.assertTrue(response is not None)
