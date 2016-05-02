@@ -634,7 +634,10 @@ void ExecutionContextImpl::checkGcStatusWithVdm_()
 		<< mMemoryPool->totalBytesAllocatedFromOS() /1024/1024.0 << " from OS."
 		<< "\n"
 		;
+	
+	auto vdmm = mVectorDataManager->getMemoryManager();
 
+		
 	while (!done)
 		{
 		bool wantGc = false;
@@ -649,6 +652,21 @@ void ExecutionContextImpl::checkGcStatusWithVdm_()
 			wantCopyDataOutOfPages,
 			wantsMemoryPoolDefragment
 			);
+
+		if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
+					 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+					vdmm->getMaxTotalBytes() * .25)
+			LOG_TEST << 
+				this << ": "
+					<< "after " << curClock() - t0 << ": "
+					<< "wantGC = " << (wantGc ? "true":"false") << ". "
+					<< "wantPageLargeVectors = " << (wantPageLargeVectors ? "true":"false") << ". "
+					<< "wantCopyDataOutOfPages = " << (wantCopyDataOutOfPages ? "true":"false") << ". "
+					<< "wantsMemoryPoolDefragment = " << (wantsMemoryPoolDefragment ? "true":"false") << ". "
+					<< "mVectorPagingDisabled = " << (mVectorPagingDisabled ? "true":"false") << "."
+					<< "memory=" << mMemoryPool->totalBytesAllocatedFromOS() / 1024.0 / 1024.0 << " MB from OS. "
+					<< "pagelets=" << getExecutionContextMemoryPool()->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB."
+					;
 
 		mGcLog 
 			<< "after " << curClock() - t0 << ": "
@@ -724,6 +742,17 @@ void ExecutionContextImpl::checkGcStatusWithVdm_()
 	mTimeSpentGarbageCollecting += curClock() - t0;
 	
 	mIsGarbageCollectingNow = false;
+
+		if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
+					 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+					.25 * vdmm->getMaxTotalBytes())
+			LOG_TEST << 
+				this << ": "
+					<< "after " << curClock() - t0 << ": "
+					<< "mVectorPagingDisabled = " << (mVectorPagingDisabled ? "true":"false") << "."
+					<< "memory=" << mMemoryPool->totalBytesAllocatedFromOS() / 1024.0 / 1024.0 << " MB from OS. "
+					<< "pagelets=" << getExecutionContextMemoryPool()->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB."
+					;
 	}
 
 void ExecutionContextImpl::defragmentMemoryUsage()
