@@ -44,13 +44,15 @@ public:
 		state_type(	MemoryPool* inTargetPool,
 					VectorDataManager* inManager,
 					size_t inBytecountThreshold, 
-					bool pageAllLargeValues = true
+					bool pageAllLargeValues = true,
+					bool verbose = false
 					) : 
 				mMemoryPool(inTargetPool),
 				mVectorDataManager(inManager),
 				mBytecountThreshold(inBytecountThreshold),
 				mPagedVectorCount(0),
-				mPageAllLargeValues(pageAllLargeValues)
+				mPageAllLargeValues(pageAllLargeValues),
+				mVerbose(verbose)
 			{
 			}
 
@@ -68,6 +70,8 @@ public:
 		size_t mBytecountThreshold;
 
 		long mPagedVectorCount;
+
+		bool mVerbose;
 
 		void cleanup()
 			{
@@ -235,10 +239,18 @@ public:
 
 	Nullable<VectorRecord> updateVectorHandleAfterVistingChildren(VectorHandle* handle)
 		{
+		if (mState.mVerbose)
+			LOG_INFO << "Visiting " << handle;
+
 		if (handle->owningMemoryPool() != mState.mMemoryPool)
 			//this is not a vector owned by us, so we shouldn't try to page anything
 			//within it
+			{
+			if (mState.mVerbose)
+				LOG_INFO << "Not owned by us: " << handle;
+
 			return null();
+			}
 
 		if (handle->unpagedAndPageletTreeValueCount())
 			{
@@ -247,6 +259,10 @@ public:
 				handle->moveUnpagedValueArrayIntoPagelet(&*mState.mVectorDataManager);
 
 			size_t bytecount = (handle->pageletTree().isEmpty() ? 0 : handle->pageletTree()->bytecountIncludingHeldPagelets());
+
+			if (mState.mVerbose)
+				LOG_INFO << "bytecount is " << bytecount << " for " << handle << " vs. " << mState.mBytecountThreshold;
+
 
 			if (bytecount >= mState.mBytecountThreshold || mState.forcePage(handle))
 				{

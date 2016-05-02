@@ -653,21 +653,6 @@ void ExecutionContextImpl::checkGcStatusWithVdm_()
 			wantsMemoryPoolDefragment
 			);
 
-		if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
-					 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
-					vdmm->getMaxTotalBytes() * .25)
-			LOG_TEST << 
-				this << ": "
-					<< "after " << curClock() - t0 << ": "
-					<< "wantGC = " << (wantGc ? "true":"false") << ". "
-					<< "wantPageLargeVectors = " << (wantPageLargeVectors ? "true":"false") << ". "
-					<< "wantCopyDataOutOfPages = " << (wantCopyDataOutOfPages ? "true":"false") << ". "
-					<< "wantsMemoryPoolDefragment = " << (wantsMemoryPoolDefragment ? "true":"false") << ". "
-					<< "mVectorPagingDisabled = " << (mVectorPagingDisabled ? "true":"false") << "."
-					<< "memory=" << mMemoryPool->totalBytesAllocatedFromOS() / 1024.0 / 1024.0 << " MB from OS. "
-					<< "pagelets=" << getExecutionContextMemoryPool()->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB."
-					;
-
 		mGcLog 
 			<< "after " << curClock() - t0 << ": "
 			<< "wantGC = " << (wantGc ? "true":"false") << ". "
@@ -742,17 +727,6 @@ void ExecutionContextImpl::checkGcStatusWithVdm_()
 	mTimeSpentGarbageCollecting += curClock() - t0;
 	
 	mIsGarbageCollectingNow = false;
-
-		if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
-					 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
-					.25 * vdmm->getMaxTotalBytes())
-			LOG_TEST << 
-				this << ": "
-					<< "after " << curClock() - t0 << ": "
-					<< "mVectorPagingDisabled = " << (mVectorPagingDisabled ? "true":"false") << "."
-					<< "memory=" << mMemoryPool->totalBytesAllocatedFromOS() / 1024.0 / 1024.0 << " MB from OS. "
-					<< "pagelets=" << getExecutionContextMemoryPool()->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB."
-					;
 	}
 
 void ExecutionContextImpl::defragmentMemoryUsage()
@@ -1061,12 +1035,18 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 	if (mVectorPagingDisabled)
 		return false;
 
+	bool verbose = false;
+
 	auto vdmm = mVectorDataManager->getMemoryManager();
 
 	if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
 				 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
-				vdmm->getMaxTotalBytes() * .25)
+				vdmm->getMaxTotalBytes() * .25 && 
+			mMemoryPool->totalBytesFromOSHeldInPagelets())
+		{
 		inBytecountThreshold = 0;
+		verbose = true;
+		}
 
 	double t0 = curClock();
 	bool result = false;
@@ -1078,7 +1058,9 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 		PageUnpagedVectorsValueUpdater::state_type pagerState(
 			mMemoryPool.get(), 
 			&*mVectorDataManager, 
-			inBytecountThreshold
+			inBytecountThreshold,
+			true,
+			verbose
 			);
 
 		ExecutionContextThreadValueUpdater<PageUnpagedVectorsValueUpdater>::state_type
