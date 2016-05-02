@@ -1032,9 +1032,6 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 	{
 	ExecutionContextInterruptAndLockScope scope(mExecutionState);
 
-	if (mVectorPagingDisabled)
-		return false;
-
 	bool verbose = false;
 
 	auto vdmm = mVectorDataManager->getMemoryManager();
@@ -1046,6 +1043,14 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 		{
 		inBytecountThreshold = 0;
 		verbose = true;
+		}
+
+	if (mVectorPagingDisabled)
+		{
+		if (verbose)
+			LOG_TEST << "Not visiting with " << mMemoryPool->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB!";
+		
+		return false;
 		}
 
 	double t0 = curClock();
