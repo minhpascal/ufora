@@ -1061,6 +1061,13 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 	if (mVectorPagingDisabled)
 		return false;
 
+	auto vdmm = mVectorDataManager->getMemoryManager();
+
+	if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
+				 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+				vdmm->getMaxTotalBytes() * .25)
+		inBytecountThreshold = 0;
+
 	double t0 = curClock();
 	bool result = false;
 
