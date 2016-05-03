@@ -507,14 +507,16 @@ private:
 		LOG_DEBUG << "computed body in PTX";
 		std::vector<std::string>  paramOutputPtrNames(returnTypesCount);
 		std::vector<std::string>  regOutputPtrNames(returnTypesCount);
+		const std::string regOutputPtrPrefix = "reg_outputPtr_";
+		const std::string paramOutputPtrPrefix = "param_outputPtr_";
 		for (long k=0; k < returnTypesCount; ++k)
 			{
 			std::ostringstream s1;
-			s1 << "reg_outputPtr_" << k;
+			s1 << regOutputPtrPrefix << k;
 			regOutputPtrNames[k] = s1.str();
 
 			std::ostringstream s2;
-			s2 << "paramOutputPtr_" << k;
+			s2 << paramOutputPtrPrefix << k;
 			paramOutputPtrNames[k] = s2.str();
 			}
 
@@ -555,7 +557,7 @@ private:
 				<<	".reg		.u32		i_temp;\n"
 				<<	".reg		.u64		i64;\n";
 
-		result <<	".reg		.u64		reg_outputPtr_<" << returnTypesCount << ">;\n";
+		result <<	".reg		.u64		" << regOutputPtrPrefix << "<" << returnTypesCount << ">;\n";
 
 				//load the relevant environment values into registers
 		result	<<	"mov.u32		numthreads, %ntid.x;\n"
