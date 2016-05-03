@@ -851,7 +851,7 @@ std::string ExecutionContextImpl::extractCurrentTextStacktrace(long maxBytes)
 
 	std::ostringstream stream;
 
-	PrintStacktraceStackFrameVisitor visitor(stream, false, maxBytes);
+	PrintStacktraceStackFrameVisitor visitor(stream, true, maxBytes);
 
 	mThreadState.visitStackFramesAndValues(visitor);
 
@@ -1119,6 +1119,8 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 						pageletAndRefcount.first->getValues()->currentJor() << " has refcount " << pageletAndRefcount.second << "\n"
 						;
 				}
+
+			log << extractCurrentTextStacktrace(10 * 1024);
 			}
 
 		state.cleanup();
