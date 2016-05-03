@@ -202,12 +202,18 @@ void ExecutionContextImpl::enableVectorPaging()
 	{
 	ExecutionContextInterruptAndLockScope scope(mExecutionState);
 	
+	if (mVectorPagingDisabled)
+		LOG_TEST << "Enable VP for " << this;
+
 	mVectorPagingDisabled = false;
 	}
 
 void ExecutionContextImpl::disableVectorPaging()
 	{
 	ExecutionContextInterruptAndLockScope scope(mExecutionState);
+
+	if (!mVectorPagingDisabled)
+		LOG_TEST << "Disable VP for " << this;
 
 	mVectorPagingDisabled = true;
 	}
@@ -1048,10 +1054,13 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 	if (mVectorPagingDisabled)
 		{
 		if (verbose)
-			LOG_TEST << "Not visiting with " << mMemoryPool->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB!";
+			LOG_TEST << "Not visiting " << this << " with " << mMemoryPool->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB!";
 		
 		return false;
 		}
+
+	if (verbose)
+		LOG_TEST << "Visiting " << this << " with " << mMemoryPool->totalBytesFromOSHeldInPagelets() / 1024 / 1024.0 << " MB!";
 
 	double t0 = curClock();
 	bool result = false;
