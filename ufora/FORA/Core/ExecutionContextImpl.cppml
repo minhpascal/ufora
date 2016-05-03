@@ -1170,6 +1170,14 @@ bool ExecutionContextImpl::copyValuesOutOfVectorPages_(bool releaseBigvecSlot, b
 
 	if (cleanMemoryPool)
 		{
+		auto vdmm = mVectorDataManager->getMemoryManager();
+
+		if ((vdmm->totalBytesUsedByExecutionContextsIncludingPagelets() -
+					 vdmm->totalBytesUsedByExecutionContextsExcludingPagelets()) > 
+					vdmm->getMaxTotalBytes() * .25 && 
+				mMemoryPool->totalBytesFromOSHeldInPagelets())
+			LOG_TEST << this << " cleaning memory pool.";
+
 		//always do this before recycling the refcount pool
 		mDoubleVectorStashAllocator.clear();
 
