@@ -86,7 +86,6 @@ public:
 
 	void handleComputationBlocked_(
 				const ComputationId& computation, 
-				const Fora::BigVectorSlice& slice,
 				ImmutableTreeSet<Fora::PageId> pages
 				);
 

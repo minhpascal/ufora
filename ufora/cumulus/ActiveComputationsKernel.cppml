@@ -1025,15 +1025,10 @@ void ActiveComputationsKernel::handleComputationStatusChange(ComputationId compu
 				if (mExternalInterface->currentComputationStatusForId(computation).isFinished())
 					handleComputationFinished(computation);
 				}
-		-|	BlockedOnVectorLoad(slice) ->> {
+		-|	BlockedOnVectorLoad(pages) ->> {
 				setComputationDependenciesForLocal(computation, ImmutableTreeSet<ComputationId>());
 				
-				LOG_DEBUG << "registering dependency of " 
-						<< prettyPrintStringWithoutWrapping(computation)
-						<< " on vector slice " 
-						<< slice;
-					
-				for (auto page: mExternalInterface->convertSliceToPages(slice))
+				for (auto page: pages)
 					if (!mExternalInterface->pageIsInRam(page))
 						mVectorLoadBlockedComputations.insert(computation, page);
 				}

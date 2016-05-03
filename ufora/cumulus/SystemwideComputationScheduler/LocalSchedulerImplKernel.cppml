@@ -207,7 +207,7 @@ void LocalSchedulerImplKernel::computationStatusChanged(
 					mCurrentlyComputingComputationsLastPageResetTimes.erase(computation);
 					mTryingToSplit.erase(computation);
 					}
-				-| BlockedOnVectorLoad(slice) ->> {
+				-| BlockedOnVectorLoad(pages) ->> {
 					bool blocked = false;
 
 					if (blocked)
@@ -215,7 +215,7 @@ void LocalSchedulerImplKernel::computationStatusChanged(
 							LocalToGlobalSchedulerMessage::TriggerPageLayoutRecompute()
 							);
 
-					handleComputationBlocked_(computation, slice, statistics.pagesCurrentlyBeingUsed());
+					handleComputationBlocked_(computation, statistics.pagesCurrentlyBeingUsed());
 					}
 				-| _ ->> {}
 
@@ -263,12 +263,9 @@ void LocalSchedulerImplKernel::computationNotComputable_(ComputationId computati
 
 void LocalSchedulerImplKernel::handleComputationBlocked_(
 						const ComputationId& computation, 
-						const Fora::BigVectorSlice& slice,
 						ImmutableTreeSet<Fora::PageId> pages
 						)
 	{
-	LOG_INFO << computation.guid() << " is blocked on " << slice;
-
 	if (mMachineLoads.computationsMoving().hasKey(computation))
 		{
 		LOG_INFO << "not worrying about " << computation.guid()

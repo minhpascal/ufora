@@ -246,6 +246,13 @@ public:
                     for (auto p: mCurrentStatistics.futurePageReads())
                         mPages.touchPageForSelf(p);
 
+                @match ComputationStatus(mStatus)
+                    -| BlockedOnVectorLoad(pages) ->> {
+                        for (auto p: pages)
+                            mPages.touchPageForSelf(p);
+                        }
+                    -| _ ->> {}
+
                 for (auto child: mUnfinishedChildren)
                     if (mActiveChildren.find(child) == mActiveChildren.end())
                         {
@@ -356,7 +363,9 @@ public:
                     mDependedOnChildren.insert(grp);
                     }
                 }
-            -| BlockedOnVectorLoad(slice) ->> {
+            -| BlockedOnVectorLoad(pages) ->> {
+                for (auto p: pages)
+                    mPages.touchPageForSelf(p);
                 }
             -| _ ->> {}
 
