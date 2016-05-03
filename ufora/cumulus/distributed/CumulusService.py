@@ -75,6 +75,7 @@ class CumulusService(Stoppable.Stoppable):
         self.cumulusVectorRamCacheSizeOverride = config.cumulusVectorRamCacheMB * 1024*1024
         self.cumulusThreadCountOverride = config.cumulusServiceThreadCount
         self.cumulusTrackTcmalloc = config.cumulusTrackTcmalloc
+        self.eventHandler = eventHandler
 
         self.reconnectPersistentCacheIndexViewThreads = []
 
