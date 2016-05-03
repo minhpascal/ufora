@@ -139,6 +139,7 @@ public:
 
 	int64_t getBytesAllocatedFromOsInBigvecMappingPool();
 
+	const std::map<boost::shared_ptr<Fora::Pagelet>, long>& getPageletRefcounts() const;
 private:
 	void pageletLeavingPoolEntirely_(boost::shared_ptr<Fora::Pagelet> inPagelet);
 

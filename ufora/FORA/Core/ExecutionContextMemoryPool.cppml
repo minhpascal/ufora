@@ -389,6 +389,11 @@ void ExecutionContextMemoryPool::pageletIsHeld(boost::shared_ptr<Fora::Pagelet> 
 		increfPagelet_(sub.first);
 	}
 
+const std::map<boost::shared_ptr<Fora::Pagelet>, long>& ExecutionContextMemoryPool::getPageletRefcounts() const
+	{
+	return mPageletRefcounts;
+	}
+
 void ExecutionContextMemoryPool::increfPagelet_(boost::shared_ptr<Fora::Pagelet> inPagelet)
 	{
 	long& refcount = mPageletRefcounts[inPagelet];

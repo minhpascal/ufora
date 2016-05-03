@@ -1108,7 +1108,18 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 				;
 
 		if (verbose)
-			LOG_TEST << "Visited " << state.mVectorHandlesVisited.size() << " vector handles";
+			{
+			LOGGER_TEST_T log = LOGGER_TEST;
+
+			log << "Visited " << state.mVectorHandlesVisited.size() << " vector handles\n";
+			if (state.mVectorHandlesVisited.size() == 0)
+				{
+				for (const auto& pageletAndRefcount: mMemoryPool->getPageletRefcounts())
+					log << pageletAndRefcount.first->getValues()->size() << " x " << 
+						pageletAndRefcount.first->getValues()->currentJor() << " has refcount " << pageletAndRefcount.second << "\n"
+						;
+				}
+			}
 
 		state.cleanup();
 
