@@ -1107,6 +1107,8 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 				<< " handles."
 				;
 
+		state.cleanup();
+
 		if (verbose)
 			{
 			LOGGER_TEST_T log = LOGGER_TEST;
@@ -1127,10 +1129,7 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 
 				log << "\n\n" << stream.str();
 				}
-
 			}
-
-		state.cleanup();
 
 		result = pagerState.mPagedVectorCount;
 		}

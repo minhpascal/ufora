@@ -1394,6 +1394,11 @@ public:
 			}
 
 		mFuturePageReads = pages;
+		mFuturePageFinder.reset(
+			new FuturesCliqueFinder::CliqueFinder(
+				mExecutionContext
+				)
+			);
 		}
 
 	ImmutableTreeVector<Fora::PageId> continueToSearchForFuturePages(double maxTimeElapsed)
@@ -1444,6 +1449,12 @@ public:
 			<< mFuturePageFinder->getRootTask()->toString()
 			;
 
+		mFuturePageFinder.reset(
+			new FuturesCliqueFinder::CliqueFinder(
+				mExecutionContext
+				)
+			);
+		
 		return pages;
 		}
 
