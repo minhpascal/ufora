@@ -171,21 +171,6 @@ public:
 			return;
 
 		mTaskCosts.taskAddPage(taskId, page);
-		
-		std::set<MachineId> badMachines;
-		for (auto machine: mTaskCosts.runningTasks().getValues(taskId))
-			if (!mPageAllocation.getTargetPages().contains(machine, page))
-				badMachines.insert(machine);
-
-		for (auto machine: mTaskCosts.loadingTasks().getValues(taskId))
-			if (!mPageAllocation.getTargetPages().contains(machine, page))
-				badMachines.insert(machine);
-
-		for (auto m: badMachines)
-			{
-			mTaskCosts.dropTaskLoading(taskId, m);
-			mTaskCosts.dropTaskRunning(taskId, m);
-			}
 		}
 
 	void taskDropPage(TaskAllocatorId taskId, Fora::PageId page)
@@ -307,6 +292,8 @@ public:
 
 	void rebalance()
 		{
+		dropBadLoadingOrRunningTasks();
+
 		allocateAccumulators();
 
 		dropTasksOnOverloadedMachines();
@@ -320,6 +307,33 @@ public:
 		dropUnusedPages();
 
 		moveLoadingTasksToWorkingTasks();
+
+		validateInternalInvariants();
+		}
+
+	void dropBadLoadingOrRunningTasks()
+		{
+		std::set<pair<TaskAllocatorId, MachineId> > badRunningTasks;
+		std::set<pair<TaskAllocatorId, MachineId> > badLoadingTasks;
+
+		for (auto machine: mMachines)
+			{
+			for (auto task: mTaskCosts.runningTasks().getKeys(machine))
+				for (auto page: mTaskCosts.taskPages().getValues(task))
+					if (!mPageAllocation.getPages().contains(machine, page))
+						badRunningTasks.insert(make_pair(task, machine));
+
+			for (auto task: mTaskCosts.loadingTasks().getKeys(machine))
+				for (auto page: mTaskCosts.taskPages().getValues(task))
+					if (!mPageAllocation.getTargetPages().contains(machine, page))
+						badLoadingTasks.insert(make_pair(task, machine));
+			}
+
+		for (auto t: badLoadingTasks)
+			mTaskCosts.dropTaskLoading(t.first, t.second);
+
+		for (auto t: badRunningTasks)
+			mTaskCosts.dropTaskRunning(t.first, t.second);
 		}
 
 	void dropTasksOnOverloadedMachines()
