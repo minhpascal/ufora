@@ -1107,13 +1107,18 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 				<< " handles."
 				;
 
+		int visited = state.mVectorHandlesVisited.size();
+		result = pagerState.mPagedVectorCount;
+
+		state.cleanup();
+
 		if (verbose)
 			{
 			LOGGER_TEST_T log = LOGGER_TEST;
 
-			log << "Visited " << state.mVectorHandlesVisited.size() << " vector handles\n";
+			log << "Visited " << visited << " vector handles\n";
 
-			if (state.mVectorHandlesVisited.size() == 0)
+			if (visited == 0)
 				{
 				std::ostringstream stream;
 
@@ -1125,9 +1130,6 @@ bool ExecutionContextImpl::pageLargeVectorHandles(uword_t inBytecountThreshold)
 				}
 			}
 
-		state.cleanup();
-
-		result = pagerState.mPagedVectorCount;
 		}
 	
 	if (mConfig->agressivelyValidateRefcountsAndPageReachability())
