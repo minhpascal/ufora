@@ -225,11 +225,19 @@ public:
         return tr;
         }
 
+    static PolymorphicSharedPtr<CFGWithFutures>* createEmptyCfgWithFutures()
+        {
+        return new PolymorphicSharedPtr<CFGWithFutures>(
+            CFGWithFutures::createEmpty()
+            );
+        }
+
     void exportPythonWrapper()
         {
         using namespace boost::python;
 
         class_<PolymorphicSharedPtr<CFGWithFutures>>("CFGWithFutures", no_init)
+            .def("__init__", make_constructor(createEmptyCfgWithFutures))
             .def("__str__", &strCfgWithFutures)
             .def("createCfgWithFutures", &createCfgWithFutures)
             .staticmethod("createCfgWithFutures")
@@ -244,6 +252,9 @@ public:
             .def("getFinalResult", &getFinalResult)
             .def("mustBailEarly", &mustBailEarly)
             .def("disallowRepeatNodes", &disallowRepeatNodes)
+            .def("__getstate__", &FORAPythonUtil::serializeEntireObjectGraph<PolymorphicSharedPtr<CFGWithFutures> >)
+            .def("__setstate__", &FORAPythonUtil::deserializeEntireObjectGraph<PolymorphicSharedPtr<CFGWithFutures> >)
+            .enable_pickling()
             ;
 
         FORAPythonUtil::exposeValueLikeCppmlType<FutureSlot>();

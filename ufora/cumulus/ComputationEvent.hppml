@@ -29,7 +29,7 @@ ComputationEvent
 
 @type ComputationEvent =
 	-| PageCreated of Fora::PageId page, double timeElapsed
-	-| Load of ImmutableTreeSet<Fora::PageId> pagesUsed, double timeElapsed
+	-| PageTouched of Fora::PageId page
 	;
 
 }

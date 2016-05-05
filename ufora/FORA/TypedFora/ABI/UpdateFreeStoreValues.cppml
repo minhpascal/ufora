@@ -79,10 +79,10 @@ void updateExternalMutableVectors(	ValueDeepcopierState& state,
 			for (auto value: frame.values())
 				visitor.visit(value.type(), (uint8_t*) value.getReference().data(), 1, 0);
 
-		if (freestoreValues.pendingResult())
+		if (freestoreValues.tail().isPendingResult())
 			visitor.visit(
-				freestoreValues.pendingResult()->first.type(),
-				(uint8_t*)freestoreValues.pendingResult()->first.getReference().data(),
+				freestoreValues.tail().getPendingResult().value().type(),
+				(uint8_t*)freestoreValues.tail().getPendingResult().value().data(),
 				1,
 				0
 				);

@@ -21,7 +21,6 @@
 #include "../Serialization/SerializedObjectContext.hpp"
 #include "../Serialization/SerializedObjectFlattener.hpp"
 #include "../Serialization/ForaValueSerializationStream.hppml"
-#include "../Core/ExecutionContext.hppml"
 #include "../Core/MemoryPool.hpp"
 #include "../Runtime.hppml"
 #include "../../core/python/ScopedPyThreads.hpp"
