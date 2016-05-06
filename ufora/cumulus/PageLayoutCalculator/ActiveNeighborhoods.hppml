@@ -405,6 +405,7 @@ public:
 				<< mTaskAllocator.machineAllocatedCoreCount(m) << " cores allocated. "
 				<< mTaskAllocator.loadingTasks().getKeys(m).size() << " tasks loading. "
 				<< mTaskAllocator.runningTasks().getKeys(m).size() << " tasks running. "
+				<< mTaskAllocator.bytesAllocatedToAccumulatorTasksOnMachine(m) / 1024 / 1024.0 << " MB of accumulator task."
 				<< "\n"
 				;
 		}
