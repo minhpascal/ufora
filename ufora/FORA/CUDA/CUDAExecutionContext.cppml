@@ -715,7 +715,9 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 
 			lassert(res->first == TypedFora::BlockID::entry());
 
-			cfg = transform(cfg, StripCallbackDataTransformer());
+			cfg = transform(
+					NativeCFGTransforms::convertForGpuExecution(cfg, frame->exits().resultPart().size()),
+					StripCallbackDataTransformer());
 			LOG_DEBUG << "executeKernel: 2";
 
 			while (cfg.externalBranches().size())
@@ -726,12 +728,15 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 					{
 					throw UnableToConvertToPTX("contains recursion");
 					}
-
+				NativeCFG cfgToInline =
+						converter.convertCallable(
+								Runtime::getRuntime().getTypedForaCompiler()
+									->getDefinition(nameOfSubbranch));
 				cfg = NativeCFGTransforms::inlineCFG(cfg,
 					transform(
-						converter.convertCallable(
-							Runtime::getRuntime().getTypedForaCompiler()
-								->getDefinition(nameOfSubbranch)
+						NativeCFGTransforms::convertForGpuExecution(
+							cfgToInline,
+							cfgToInline.returnTypes().size()
 							),
 						StripCallbackDataTransformer()
 						),
@@ -740,6 +745,7 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 				}
 			LOG_DEBUG << "executeKernel: 3";
 			try {
+				mMayThrowException[kernelName] = true;
 				//a lot simpler when all variables are unique
 				LOG_DEBUG << "executeKernel: 4";
 				LOG_DEBUG << "CFG:\n\n" << prettyPrintString(cfg);
@@ -763,8 +769,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 						++k;
 						}
 					}
-				cfg = NativeCFGTransforms::convertForGpuExecution(cfg, frame->exits().resultPart().size());
-				mMayThrowException[kernelName] = true;
 
 				define(kernelName, cfg, vecElementType, outputTypes);
 				LOG_DEBUG << "executeKernel: 8";

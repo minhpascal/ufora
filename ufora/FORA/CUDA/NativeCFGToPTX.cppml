@@ -255,7 +255,6 @@ class NativeToPTXConverter {
 				NativeType	closureType,
 				bool		hasClosure,
 				bool		hasResultIndex,
-				bool		mayThrowException,
 				uword_t		firstReturnTypeIndex,
 				uword_t		returnTypesCount)
 				:	mCfg(cfg),
@@ -263,7 +262,6 @@ class NativeToPTXConverter {
 					mClosureType(closureType),
 					mHasClosure(hasClosure),
 					mHasResultIndex(hasResultIndex),
-					mMayThrowException(mayThrowException),
 					mFirstReturnTypeIndex(firstReturnTypeIndex),
 					mReturnTypesCount(returnTypesCount)
 			{}
@@ -273,7 +271,6 @@ class NativeToPTXConverter {
 		NativeType	mClosureType;
 		bool		mHasClosure;
 		bool		mHasResultIndex;
-		bool		mMayThrowException;
 		uword_t		mFirstReturnTypeIndex;
 		uword_t		mReturnTypesCount;
 	};
@@ -471,7 +468,6 @@ private:
 					closureType,
 					closureIndex ? true : false,
 					hasResultIndex,
-					mayThrowException,
 					firstReturnTypeIndex,
 					returnTypesCount);
 		}
@@ -1035,6 +1031,7 @@ private:
 					if (!varRep)
 						throw UnableToConvertToPTX(
 								"unknown variable :" + prettyPrintString(v));
+					lassert(inLocalVariables[v]);
 					return null() << *inLocalVariables[v];
 					}
 			-| DiscardFirst(e1, e2) ->> {
@@ -1183,6 +1180,8 @@ private:
 						);
 					}
 
+				lassert(lhs.type());
+				lassert(rhs.type());
 				if (*lhs.type() == NativeType::uint1() &&
 					*rhs.type() == NativeType::uint1())
 					{
@@ -1201,6 +1200,7 @@ private:
 
 				//not a constant expression nor pointer arithmetic.
 				// allocate a register for the output
+				lassert(inNativeExpression.type());
 				PTXValueRepresentation outReg =
 					mRegisters.allocateValue(*inNativeExpression.type());
 
@@ -1331,6 +1331,7 @@ private:
 					return null();
 
 				//get a register for the output
+				lassert(inNativeExpression.type());
 				PTXValueRepresentation outReg =
 					mRegisters.allocateValue(*inNativeExpression.type());
 
@@ -1361,6 +1362,7 @@ private:
 
 				//write a comment so we can tell what is
 				//going on in the PTX string
+				lassert(lhs.type());
 				ioSideEffectStream << "// "
 					<< prettyPrintString(opcode) << " on "
 					<< prettyPrintString(*lhs.type()) << "\n"
@@ -1474,6 +1476,8 @@ private:
 					return sourceVal;
 
 				//allocate a register
+				lassert(inNativeExpression.type());
+				lassert(sourceExpression.type());
 				PTXValueRepresentation outReg =
 					mRegisters.allocateValue(*inNativeExpression.type());
 
@@ -1571,6 +1575,7 @@ private:
 
 				string	predicateRegister = mRegisters.allocatePredicate();
 
+				lassert(cond.type());
 				ioSideEffectStream << "setp.ne."
 					<< nativeTypeToPTXType(*cond.type()) << " "
 					<< predicateRegister << ", "
@@ -1602,6 +1607,7 @@ private:
 					;
 				if (trueVal)
 					{
+					lassert(outReg);
 					copyFromPTXToPTX(*trueVal, *outReg, ioSideEffectStream);
 					ioSideEffectStream << "bra " << rejoinBlockName << ";\n";
 					}
@@ -1618,6 +1624,7 @@ private:
 					;
 				if (falseVal)
 					{
+					lassert(outReg);
 					copyFromPTXToPTX(*falseVal, *outReg, ioSideEffectStream);
 					ioSideEffectStream << "bra " << rejoinBlockName << ";\n";
 					}
@@ -1850,6 +1857,7 @@ private:
 				return null() << PTXValueRepresentation::Nothing();
 				}
 			-| Load(address, isVolatile) ->> {
+				lassert(inNativeExpression.type());
 				PTXValueRepresentation valRep =
 						mRegisters.allocateValue(*inNativeExpression.type());
 
@@ -1860,7 +1868,7 @@ private:
 						inLocalVariables,
 						ioSideEffectStream
 						);
-
+				lassert(addrRep);
 				auto loads = loadValueFromPointerIntoRegisters(*addrRep, valRep);
 				ioSideEffectStream << loads;
 				return null() << valRep;
