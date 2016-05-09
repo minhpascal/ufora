@@ -1019,6 +1019,7 @@ private:
 					return null() << PTXValueRepresentation::Constant(s);
 					}
 			-| Tagged(e, tag) ->> {
+					LOG_DEBUG << "computeExpression::Tagged:: " << prettyPrintString(inNativeExpression);
 					return computeExpression(e,
 						inContinuations,
 						inEntrypoints,
@@ -1857,6 +1858,8 @@ private:
 				return null() << PTXValueRepresentation::Nothing();
 				}
 			-| Load(address, isVolatile) ->> {
+				LOG_DEBUG << "computeExpression::Load:: " << prettyPrintString(inNativeExpression);
+
 				lassert(inNativeExpression.type());
 				PTXValueRepresentation valRep =
 						mRegisters.allocateValue(*inNativeExpression.type());

@@ -279,7 +279,7 @@ public:
 				error = cuMemAlloc(&d_destData[k], inDestElementSize[k] * inN);
 				throwOnError(msg.str(), error);
 				}
-
+			LOG_DEBUG << "executeFuntion : 3";
 			// Grid/Block configuration
 			int threadsPerBlock = 1024;
 			int blocksPerGrid   = (inN + threadsPerBlock - 1) / threadsPerBlock;
@@ -304,6 +304,7 @@ public:
 				args[kk++] = &d_destData[k];
 				}
 			lassert(kk == argCount);
+			LOG_DEBUG << "executeFuntion : 4";
 
 			// Launch the CUDA kernel
 			error = cuLaunchKernel( functionNameForModule(contextToUse, inModuleName),
@@ -311,14 +312,16 @@ public:
 									threadsPerBlock, 1, 1,
 									0,
 									NULL, args, NULL);
-
 			lassert_dump(error == CUDA_SUCCESS, "UNKNOWN CUDA ERROR");
+			LOG_DEBUG << "executeFuntion : 5";
+
 			//copy to target
 			if (outIndexData)
 				{
 				error = cuMemcpyDtoH(outIndexData, d_indexData, inIndexElementSize * inN);
 				throwOnError("Copy Index to Destination Memory", error);
 				}
+			LOG_DEBUG << "executeFuntion : 6";
 			for (uword_t k = 0; k < outputTypesCount; ++k)
 				{
 				error = cuMemcpyDtoH(	outDestDataVectors[k],
@@ -327,6 +330,7 @@ public:
 										);
 				throwOnError("Copy output to Destination Memory", error);
 				}
+			LOG_DEBUG << "executeFuntion : 7";
 			//free cuda memory
 			if (inClosureSize > 0)
 				cuMemFree(d_closureData);
@@ -336,6 +340,7 @@ public:
 			for (uword_t k = 0; k < outputTypesCount; ++k)
 				cuMemFree(d_destData[k]);
 			free(args);
+			LOG_DEBUG << "executeFuntion : 8";
 
 			mUnusedContexts.write(contextToUse);
 			}
@@ -745,13 +750,16 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 				}
 			LOG_DEBUG << "executeKernel: 3";
 			try {
+				LOG_DEBUG << "CFG:\n\n" << prettyPrintString(cfg);
 				mMayThrowException[kernelName] = true;
+
 				//a lot simpler when all variables are unique
 				LOG_DEBUG << "executeKernel: 4";
 				LOG_DEBUG << "CFG:\n\n" << prettyPrintString(cfg);
 				cfg = NativeCFGTransforms::optimize(cfg, Runtime::getRuntime().getConfig());
 				LOG_DEBUG << "executeKernel: 5";
 				cfg = NativeCFGTransforms::renameVariables(cfg);
+				LOG_DEBUG << "CFG:\n\n" << prettyPrintString(cfg);
 				LOG_DEBUG << "executeKernel: 6";
 
 				std::vector<Type> outputTypes(frame->exits().resultPart().size());
