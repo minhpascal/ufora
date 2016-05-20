@@ -96,7 +96,7 @@ class CumulusWorkerDatasetLoadServiceIntegrationTest(unittest.TestCase):
             datasets.s3('bucketname', 'key').sum()
             """
 
-        self.assertIsNotNone(self.computeUsingSeveralWorkers(text, s3, 4, timeout = 120, blockUntilConnected=True))
+        self.assertIsNotNone(self.computeUsingSeveralWorkers(text, s3, 4, timeout = 120))
 
         totalBytecount = 0
         for machine, bytecount in s3.getPerMachineBytecounts().iteritems():
@@ -122,7 +122,7 @@ class CumulusWorkerDatasetLoadServiceIntegrationTest(unittest.TestCase):
 
             text = """datasets.s3('bucketname', 'key_0').sum()"""
 
-            self.computeUsingSeveralWorkers(text, s3, 4, timeout = 120, blockUntilConnected=True)
+            self.computeUsingSeveralWorkers(text, s3, 4, timeout = 120)
 
         self.assertTrue(bytesUsed[0] < bytesUsed[-1] - 100, bytesUsed)
 

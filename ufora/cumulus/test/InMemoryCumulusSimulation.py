@@ -160,7 +160,6 @@ def computeUsingSeveralWorkers(
             wantsStats = False,
             timeout=10,
             memoryLimitMb = 100,
-            blockUntilConnected = False,
             sharedStateViewFactory = None,
             threadCount = 2,
             ioTaskThreadOverride = None,
