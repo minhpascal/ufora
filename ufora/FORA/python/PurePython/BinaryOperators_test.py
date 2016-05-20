@@ -13,20 +13,15 @@
 #   limitations under the License.
 
 import pyfora
-import pyfora.Connection as Connection
 
 
 import ufora.FORA.python.PurePython.OperationsToTest as OperationsToTest
-import ufora.BackendGateway.SubscribableWebObjects.InMemorySocketIoJsonInterface as InMemorySocketIoJsonInterface
-import ufora.BackendGateway.SubscribableWebObjects.MessageProcessor as MessageProcessor
-import ufora.cumulus.distributed.CumulusGatewayInProcess as CumulusGatewayInProcess
-import ufora.BackendGateway.ComputedValue.ComputedValueGateway as ComputedValueGateway
-import ufora.distributed.SharedState.tests.SharedStateTestHarness as SharedStateTestHarness
+import ufora.FORA.python.PurePython.InMemorySimulationExecutorFactory as \
+    InMemorySimulationExecutorFactory
 
 
 import unittest
 import logging
-import traceback
 
 
 class TestAllBinaryOperators(unittest.TestCase):
@@ -51,44 +46,24 @@ class TestAllBinaryOperators(unittest.TestCase):
             if shouldClose:
                 executor.close()
 
-    def create_executor(self):
-        s3 = []
-        def createMessageProcessor():
-            harness = SharedStateTestHarness.SharedStateTestHarness(inMemory=True)
+    @classmethod
+    def setUpClass(cls):
+        cls.executor = None
 
-            def createCumulusComputedValueGateway():
-                def createCumulusGateway(callbackScheduler, vdm):
-                    with harness.viewFactory:
-                        result = CumulusGatewayInProcess.InProcessGateway(
-                            harness.callbackScheduler.getFactory(),
-                            harness.callbackScheduler,
-                            vdm
-                            )
+    @classmethod
+    def tearDownClass(cls):
+        if cls.executor is not None:
+            cls.executor.close()
 
-                        # pull out the inmemory s3 interface so that we can surface
-                        # it and attach it to the connection object.
+    @classmethod
+    def create_executor(cls, allowCached=True):
+        if not allowCached:
+            return InMemorySimulationExecutorFactory.create_executor()
+        if cls.executor is None:
+            cls.executor = InMemorySimulationExecutorFactory.create_executor()
+            cls.executor.stayOpenOnExit = True
 
-                        s3.append(result.s3Service)
-                        return result
-
-                return ComputedValueGateway.CumulusComputedValueGateway(
-                    harness.callbackScheduler.getFactory(),
-                    harness.callbackScheduler,
-                    createCumulusGateway
-                    )
-
-            return MessageProcessor.MessageProcessor(
-                harness.callbackScheduler,
-                harness.viewFactory,
-                createCumulusComputedValueGateway
-                )
-
-        socketIoToJsonInterface = InMemorySocketIoJsonInterface.InMemorySocketIoJsonInterface(
-            createMessageProcessor
-            )
-        connection = Connection.connectGivenSocketIo(socketIoToJsonInterface)
-        connection.__dict__['s3Interface'] = s3[0]
-        return connection
+        return cls.executor
 
     def equivalentEvaluationTestThatHandlesExceptions(self, executor, func, *args):
         try:
