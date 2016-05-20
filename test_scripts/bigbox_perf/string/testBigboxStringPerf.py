@@ -94,62 +94,6 @@ class BigboxStringPerformanceTest(unittest.TestCase):
                 s3,
                 1,
                 timeout = 240,
-                memoryLimitMb = 55 * 1024 / workers,
-                threadCount = 30,
-                returnSimulation = True,
-                useInMemoryCache = False
-                )
-
-        try:
-            t0 = time.time()
-            result = simulation.compute(text, timeout=240)
-            totalTimeToReturnResult = time.time() - t0
-
-            PerformanceTestReporter.recordTest(testName, totalTimeToReturnResult, None)
-        finally:
-            simulation.teardown()
-
-    def test_parseStringToDate_1(self):
-        self.stringToDatetimeParsingTest(1, "python.BigBox.StringToDateParse.01Threads")
-
-    def test_parseStringToDate_2(self):
-        self.stringToDatetimeParsingTest(2, "python.BigBox.StringToDateParse.02Threads")
-
-    def test_parseStringToDate_5(self):
-        self.stringToDatetimeParsingTest(5, "python.BigBox.StringToDateParse.05Threads")
-
-    def test_parseStringToDate_10(self):
-        self.stringToDatetimeParsingTest(10, "python.BigBox.StringToDateParse.10Threads")
-
-    def test_parseStringToDate_30(self):
-        self.stringToDatetimeParsingTest(30, "python.BigBox.StringToDateParse.30Threads")
-
-    def stringToDatetimeParsingTest(self, threads, testName):
-        s3 = InMemoryS3Interface.InMemoryS3InterfaceFactory()
-
-        #we wish we could actually test that we achieve saturation here but we can't yet.
-        text = """
-            let s = ["2013-01-01 15:18:10"][0];
-
-            let doALoop = fun(x) {
-                let res = 0
-                for ix in sequence(x) {
-                    res = res + DateTime(s).year
-                    }
-                res
-                };
-
-            Vector.range(__thread_count__) ~~ {doALoop(4000000 + _)}
-            """.replace("__thread_count__", str(threads))
-
-        t0 = time.time()
-
-        _, simulation = \
-            self.computeUsingSeveralWorkers(
-                "1+1",
-                s3,
-                1,
-                timeout = 240,
                 memoryLimitMb = 55 * 1024,
                 threadCount = 30,
                 returnSimulation = True,
