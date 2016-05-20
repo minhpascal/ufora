@@ -21,7 +21,7 @@ import ufora.distributed.SharedState.tests.SharedStateTestHarness as SharedState
 import pyfora.Connection as Connection
 
 
-def create_executor():
+def create_executor(workerCount=1):
     s3 = []
     def createMessageProcessor():
         harness = SharedStateTestHarness.SharedStateTestHarness(inMemory=True)
@@ -33,6 +33,7 @@ def create_executor():
                         harness.callbackScheduler.getFactory(),
                         harness.callbackScheduler,
                         vdm,
+                        workerCount=workerCount,
                         pageSizeOverride=10000000,
                         useInMemoryCache=200
                         )

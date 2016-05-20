@@ -24,7 +24,7 @@ import ufora.BackendGateway.ComputedGraph.BackgroundUpdateQueue as BackgroundUpd
 import ufora.native.Cumulus as CumulusNative
 import ufora.util.ThreadLocalStack as ThreadLocalStack
 import ufora.FORA.VectorDataManager.VectorDataManager as VectorDataManager
-import traceback
+
 
 _no_tsunami_reload = True
 

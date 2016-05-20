@@ -25,9 +25,11 @@ class InProcessGateway(CumulusGateway.CumulusGateway):
     def __init__(self, callbackSchedulerFactory, callbackScheduler, vdm, **kwds):
         s3Service = InMemoryS3Interface.InMemoryS3InterfaceFactory()
 
+        if 'workerCount' not in kwds:
+            kwds['workerCount'] = 1
+
         simulation = InMemoryCumulusSimulation.InMemoryCumulusSimulation(
-            1,
-            0,
+            clientCount=0,
             s3Service=s3Service,
             memoryPerWorkerMB=400,
             callbackScheduler=callbackScheduler,
