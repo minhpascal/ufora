@@ -159,15 +159,15 @@ def computeUsingSeveralWorkers(
             objectStore=None,
             wantsStats = False,
             timeout=10,
-            memoryLimitMb = 100,
-            sharedStateViewFactory = None,
-            threadCount = 2,
-            ioTaskThreadOverride = None,
-            returnSimulation = False,
-            useInMemoryCache = True,
-            channelThroughputMBPerSecond = None,
-            pageSizeOverride = None,
-            disableEventHandler = False
+            memoryLimitMb=100,
+            sharedStateViewFactory=None,
+            threadCount=2,
+            ioTaskThreadOverride=None,
+            returnSimulation=False,
+            useInMemoryCache=True,
+            channelThroughputMBPerSecond=None,
+            pageSizeOverride=None,
+            disableEventHandler=False
             ):
     simulation = InMemoryCumulusSimulation(
             workerCount=count,
