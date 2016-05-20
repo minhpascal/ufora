@@ -138,7 +138,7 @@ class TestCopulaModelPerf(unittest.TestCase):
 
                     total_portfolio_value = sum([obligor.value for obligor in obligors])
 
-                    n_samples = 10000 * n_threads
+                    n_samples = 20000 * n_threads
 
                     def batch_size(batch_ix):
                         if batch_ix < n_threads - 1:
