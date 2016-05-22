@@ -28,7 +28,7 @@ ComputationEvent
 ***********/
 
 @type ComputationEvent =
-	-| PageCreated of Fora::PageId page, double timeElapsed
+	-| PageCreated of Fora::PageId page
 	-| PageTouched of Fora::PageId page
     -| RuntimeMeasurement of RuntimePredictionObservation observation
 	;
