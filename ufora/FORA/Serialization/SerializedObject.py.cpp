@@ -19,6 +19,7 @@
 #include <boost/python.hpp>
 #include <boost/format.hpp>
 #include "../python/FORAPythonUtil.hppml"
+#include "../python/FORAPythonUtilSerialization.hppml"
 #include "../../native/Registrar.hpp"
 #include "../../core/python/CPPMLWrapper.hpp"
 #include "../../core/python/ScopedPyThreads.hpp"
@@ -72,7 +73,7 @@ public:
 	static std::string
 	SerializedObjectSerializer(PolymorphicSharedPtr<SerializedObject>& inObj)
 		{
-		return FORAPythonUtil::serializer(inObj);
+		return FORAPythonUtilSerialization::serializer(inObj);
 		}
 
 	static void SerializedObjectDeserializer(
@@ -84,7 +85,7 @@ public:
 		//and expect to be given a blank shared ptr
 		PolymorphicSharedPtr<SerializedObject> toReturn;
 
-		FORAPythonUtil::deserializer(toReturn, inData);
+		FORAPythonUtilSerialization::deserializer(toReturn, inData);
 
 		*inObj = *toReturn;
 		}

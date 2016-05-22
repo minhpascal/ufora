@@ -23,6 +23,7 @@
 #include "../../native/Registrar.hpp"
 
 #include "../../core/serialization/OFileProtocol.hpp"
+#include "../../FORA/Runtime.hppml"
 #include "../../FORA/Serialization/SerializedObjectFlattener.hpp"
 #include "../../core/threading/CallbackScheduler.hppml"
 #include "../../core/threading/SimpleCallbackSchedulerFactory.hppml"

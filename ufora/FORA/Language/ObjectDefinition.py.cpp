@@ -16,6 +16,9 @@
 #include "Function.hppml"
 
 #include <stdint.h>
+#include "../Runtime.hppml"
+#include "../Core/ClassMediator.hppml"
+#include "../Core/ClassBody.hppml"
 #include "../python/FORAPythonUtil.hppml"
 #include <boost/python.hpp>
 #include "../../native/Registrar.hpp"
@@ -24,8 +27,6 @@
 #include "../ControlFlowGraph/ControlFlowGraph.hppml"
 
 #include "FunctionToCFG.hppml"
-
-#include "../Core/ClassMediator.hppml"
 
 class ObjectDefinitionWrapper :
 		public native::module::Exporter<ObjectDefinitionWrapper> {

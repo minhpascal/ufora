@@ -15,14 +15,8 @@
 ****************************************************************************/
 #pragma once
 
-#include "../Core/Type.hppml"
 #include <boost/python.hpp>
-#include "../Serialization/SerializedObject.hpp"
-#include "../Serialization/SerializedObjectContext.hpp"
-#include "../Serialization/SerializedObjectFlattener.hpp"
-#include "../Serialization/ForaValueSerializationStream.hppml"
-#include "../Core/MemoryPool.hpp"
-#include "../Runtime.hppml"
+#include "../../core/serialization/Serialization.hpp"
 #include "../../core/python/ScopedPyThreads.hpp"
 #include "../../core/python/CPPMLWrapper.hpp"
 #include "../../core/serialization/INoncontiguousByteBlockProtocol.hpp"
@@ -58,6 +52,7 @@ public:
 
 			return hashValue(in)[0];
 			}
+
 		template<class T>
 		static int32_t comparer(const T& in, boost::python::object& b)
 			{
@@ -71,74 +66,6 @@ public:
 			ScopedPyThreads threads;
 
 			return hashValue(in).cmp(hashValue(t2));
-			}
-
-
-		template<class T>
-		static std::string serializer(const T& in)
-			{
-			ScopedPyThreads threads;
-
-			ONoncontiguousByteBlockProtocol				protocol;
-
-				{
-				OBinaryStream stream(protocol);
-
-				SerializedObjectContextSerializer serializer(
-					stream,
-					SerializedObjectContext::currentContext()
-					);
-
-				Fora::VectorMemoizingForaValueSerializationStream valueStream(serializer);
-
-				valueStream.serialize(in);
-				}
-
-			return protocol.getData()->toString();
-			}
-
-		template<class T>
-		static void deserializer(T& out, std::string inByteBlock)
-			{
-			ScopedPyThreads threads;
-
-			IMemProtocol	protocol(inByteBlock);
-
-				{
-				IBinaryStream stream(protocol);
-
-				SerializedObjectContextDeserializer deserializer(
-					stream,
-					SerializedObjectContext::currentContext(),
-					MemoryPool::getFreeStorePool()
-					);
-
-				Fora::VectorMemoizingForaValueDeserializationStream valueStream(deserializer);
-
-				valueStream.deserialize(out);
-				}
-			}
-
-
-		template<class T>
-		static std::string serializeEntireObjectGraph(const T& in)
-			{
-			ScopedPyThreads threads;
-
-			return SerializedObjectFlattener::serializeEntireObjectGraph(in)->toString();
-			}
-
-		template<class T>
-		static void deserializeEntireObjectGraph(T& out, std::string inByteBlock)
-			{
-			ScopedPyThreads threads;
-
-			SerializedObjectInflater::deserializeEntireObjectGraph(
-				PolymorphicSharedPtr<NoncontiguousByteBlock>(
-					new NoncontiguousByteBlock(std::move(inByteBlock))
-					),
-				out
-				);
 			}
 
 		template<class T>
@@ -158,7 +85,7 @@ public:
 			}
 
 		template<class T>
-		static Ufora::python::CPPMLWrapper<T> exposeValueLikeCppmlType(bool inExposeSerializers = true)
+		static Ufora::python::CPPMLWrapper<T> exposeValueLikeCppmlType()
 			{
 			Ufora::python::CPPMLWrapper<T> result(true);
 
@@ -168,13 +95,6 @@ public:
 				.def("__hash__", &hasher<T>)
 				.def("__cmp__", &comparer<T>)
 				;
-
-			if (inExposeSerializers)
-				result.class_()
-					.def("__getstate__", &FORAPythonUtil::serializer<T>)
-					.def("__setstate__", &FORAPythonUtil::deserializer<T>)
-					.enable_pickling()
-					;
 
 			return result;
 			}

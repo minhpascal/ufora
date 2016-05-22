@@ -22,6 +22,7 @@
 #include "../../core/python/CPPMLWrapper.hpp"
 #include "../../core/python/ScopedPyThreads.hpp"
 #include "Parser.hppml"
+#include "../Runtime.hppml"
 #include "../Core/ClassMediator.hppml"
 #include "../ControlFlowGraph/ControlFlowGraph.hppml"
 #include "../Core/Type.hppml"

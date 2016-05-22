@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <boost/python.hpp>
 #include "../FORA/python/FORAPythonUtil.hppml"
+#include "../FORA/python/FORAPythonUtilSerialization.hppml"
 #include "../native/Registrar.hpp"
 #include "../core/python/CPPMLWrapper.hpp"
 #include "../core/containers/ImmutableTreeVector.py.hpp"
@@ -42,8 +43,8 @@ public:
 				;
 
 			PythonWrapper<ImmutableTreeVector<ActiveComputationsEvent> >::exportPythonInterface("ActiveComputationsEvent")
-				.def("__getstate__", &FORAPythonUtil::serializeEntireObjectGraph<ImmutableTreeVector<ActiveComputationsEvent> >)
-				.def("__setstate__", &FORAPythonUtil::deserializeEntireObjectGraph<ImmutableTreeVector<ActiveComputationsEvent> >)
+				.def("__getstate__", &FORAPythonUtilSerialization::serializeEntireObjectGraph<ImmutableTreeVector<ActiveComputationsEvent> >)
+				.def("__setstate__", &FORAPythonUtilSerialization::deserializeEntireObjectGraph<ImmutableTreeVector<ActiveComputationsEvent> >)
 				.enable_pickling()
 				;
 

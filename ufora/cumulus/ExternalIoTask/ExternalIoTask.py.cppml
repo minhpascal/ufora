@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <boost/python.hpp>
 #include "../../FORA/python/FORAPythonUtil.hppml"
+#include "../../FORA/python/FORAPythonUtilSerialization.hppml"
 #include "../../native/Registrar.hpp"
 #include "../../core/python/CPPMLWrapper.hpp"
 

@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <boost/python.hpp>
 #include "../FORA/python/FORAPythonUtil.hppml"
+#include "../FORA/python/FORAPythonUtilSerialization.hppml"
 #include "../native/Registrar.hpp"
 #include "../core/python/CPPMLWrapper.hpp"
 #include "../core/containers/ImmutableTreeVector.py.hpp"
@@ -42,8 +43,8 @@ public:
 				;
 
 			PythonWrapper<ImmutableTreeVector<CumulusWorkerEvent> >::exportPythonInterface("CumulusWorkerEvent")
-				.def("__getstate__", &FORAPythonUtil::serializeEntireObjectGraph<ImmutableTreeVector<CumulusWorkerEvent> >)
-				.def("__setstate__", &FORAPythonUtil::deserializeEntireObjectGraph<ImmutableTreeVector<CumulusWorkerEvent> >)
+				.def("__getstate__", &FORAPythonUtilSerialization::serializeEntireObjectGraph<ImmutableTreeVector<CumulusWorkerEvent> >)
+				.def("__setstate__", &FORAPythonUtilSerialization::deserializeEntireObjectGraph<ImmutableTreeVector<CumulusWorkerEvent> >)
 				.enable_pickling()
 				;
 

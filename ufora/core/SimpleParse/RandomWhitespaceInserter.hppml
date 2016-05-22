@@ -16,6 +16,7 @@
 #pragma once
 
 #include "../cppml/CPPMLPrettyPrinter.hppml"
+#include "SimpleParse.hppml"
 #include "../PolymorphicSharedPtr.hpp"
 #include <boost/random.hpp>
 
