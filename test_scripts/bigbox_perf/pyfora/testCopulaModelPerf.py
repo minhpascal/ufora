@@ -19,6 +19,7 @@ import ufora.test.PerformanceTestReporter as PerformanceTestReporter
 import ufora.FORA.python.FORA as FORA
 
 import multiprocessing
+import multiprocessing.pool
 import numpy as np
 import pyfora
 import pyfora.random.mtrand
@@ -254,7 +255,7 @@ class TestCopulaModelPerf(unittest.TestCase):
     def test_loopScalability_32(self):
         self.loopScalabilityTest(32, "pyfora.BigBox.LoopScalabilityTest.32Threads")
 
-    def numpyLoopScalabilityTest(self, n_processes, testName):
+    def numpyLoopScalabilityTest_processes(self, n_processes, testName):
         pool = multiprocessing.Pool(n_processes)
         t0 = time.time()
         n_samples = 20000
@@ -263,23 +264,50 @@ class TestCopulaModelPerf(unittest.TestCase):
 
         PerformanceTestReporter.recordTest(testName, t_elapsed, None)
         
-    def test_numpyScalability_1(self):
-        self.numpyLoopScalabilityTest(1, "pyfora.BigBox.NumpyLoopScalabilityTest.01Processes")
+    def test_numpyScalability_processes_1(self):
+        self.numpyLoopScalabilityTest_processes(1, "pyfora.BigBox.NumpyLoopScalabilityTest.01Processes")
 
-    def test_numpyScalability_2(self):
-        self.numpyLoopScalabilityTest(2, "pyfora.BigBox.NumpyLoopScalabilityTest.02Processes")
+    def test_numpyScalability_processes_2(self):
+        self.numpyLoopScalabilityTest_processes(2, "pyfora.BigBox.NumpyLoopScalabilityTest.02Processes")
 
-    def test_numpyScalability_4(self):
-        self.numpyLoopScalabilityTest(4, "pyfora.BigBox.NumpyLoopScalabilityTest.04Processes")
+    def test_numpyScalability_processes_4(self):
+        self.numpyLoopScalabilityTest_processes(4, "pyfora.BigBox.NumpyLoopScalabilityTest.04Processes")
 
-    def test_numpyScalability_8(self):
-        self.numpyLoopScalabilityTest(8, "pyfora.BigBox.NumpyLoopScalabilityTest.08Processes")
+    def test_numpyScalability_processes_8(self):
+        self.numpyLoopScalabilityTest_processes(8, "pyfora.BigBox.NumpyLoopScalabilityTest.08Processes")
 
-    def test_numpyScalability_16(self):
-        self.numpyLoopScalabilityTest(16, "pyfora.BigBox.NumpyLoopScalabilityTest.16Processes")
+    def test_numpyScalability_processes_16(self):
+        self.numpyLoopScalabilityTest_processes(16, "pyfora.BigBox.NumpyLoopScalabilityTest.16Processes")
 
-    def test_numpyScalability_32(self):
-        self.numpyLoopScalabilityTest(32, "pyfora.BigBox.NumpyLoopScalabilityTest.32Processes")
+    def test_numpyScalability_processes_32(self):
+        self.numpyLoopScalabilityTest_processes(32, "pyfora.BigBox.NumpyLoopScalabilityTest.32Processes")
+
+    def numpyLoopScalabilityTest_threads(self, n_threads, testName):
+        pool = multiprocessing.pool.ThreadPool(n_threads)
+        t0 = time.time()
+        n_samples = 20000
+        pool.map(numpy_func, [n_samples] * n_threads)
+        t_elapsed = time.time() - t0
+
+        PerformanceTestReporter.recordTest(testName, t_elapsed, None)
+        
+    def test_numpyScalability_threads_1(self):
+        self.numpyLoopScalabilityTest_threads(1, "pyfora.BigBox.NumpyLoopScalabilityTest.01Threads")
+
+    def test_numpyScalability_threads_2(self):
+        self.numpyLoopScalabilityTest_threads(2, "pyfora.BigBox.NumpyLoopScalabilityTest.02Threads")
+
+    def test_numpyScalability_threads_4(self):
+        self.numpyLoopScalabilityTest_threads(4, "pyfora.BigBox.NumpyLoopScalabilityTest.04Threads")
+
+    def test_numpyScalability_threads_8(self):
+        self.numpyLoopScalabilityTest_threads(8, "pyfora.BigBox.NumpyLoopScalabilityTest.08Threads")
+
+    def test_numpyScalability_threads_16(self):
+        self.numpyLoopScalabilityTest_threads(16, "pyfora.BigBox.NumpyLoopScalabilityTest.16Threads")
+
+    def test_numpyScalability_threads_32(self):
+        self.numpyLoopScalabilityTest_threads(32, "pyfora.BigBox.NumpyLoopScalabilityTest.32Threads")
 
 
 if __name__ == "__main__":
