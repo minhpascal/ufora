@@ -18,6 +18,7 @@ import ufora.FORA.python.PurePython.InMemorySimulationExecutorFactory as \
 import ufora.test.PerformanceTestReporter as PerformanceTestReporter
 import ufora.FORA.python.FORA as FORA
 
+import multiprocessing
 import numpy as np
 import pyfora
 import pyfora.random.mtrand
@@ -79,6 +80,63 @@ class Portfolio(object):
             if X[ix] > self.x_list[ix]:
                 loss = loss + self.value_list[ix]
         return loss, random_state
+
+
+def numpy_func(n_samples):
+    np.random.seed(42)
+
+    n_factors = 40
+    n_obligors = 5000
+
+    obligors = [Obligor(
+        probability_of_default=np.random.rand(),
+        value=np.random.uniform(low=0, high=100),
+        factor_loads=np.random.rand(n_factors)
+        ) for _ in xrange(n_obligors)]
+
+    portfolio = NumpyPortfolio(obligors=obligors)
+
+    total_portfolio_value = np.sum([obligor.value for obligor in obligors])
+
+    print "total portfolio value =", total_portfolio_value
+
+    simulated_losses = portfolio.simulate_losses(n_samples=n_samples, seed=42)
+
+    thresh = total_portfolio_value * 0.95
+    print "estimated P(L > x=%s) = %s" % (
+        thresh,
+        np.sum(simulated_losses > thresh) / float(len(simulated_losses))
+        )
+
+
+class NumpyPortfolio(object):
+    def __init__(self, obligors):
+        self.obligors = obligors
+        self.x_list = np.array([obligor.x for obligor in obligors])
+        self.value_list = np.array([obligor.value for obligor in obligors])
+        self.n_factors = len(obligors[0].factor_loads)
+
+        assert all([len(obligor.factor_loads) == self.n_factors \
+                    for obligor in obligors])
+
+        self.factor_loads = np.array([
+            obligor.factor_loads for obligor in obligors
+            ])
+
+    def simulate_losses(self, n_samples, random_state=None, seed=None):
+        if random_state is None:
+            random_state = np.random.RandomState(seed)
+
+        return np.array([
+            self.simulate_loss(random_state) for _ in xrange(n_samples)
+            ])
+ 
+    def simulate_loss(self, random_state):
+        Z = random_state.randn(self.n_factors)
+        X = np.dot(self.factor_loads, Z)
+        is_default_list = X > self.x_list
+        loss = np.dot(is_default_list, self.value_list)
+        return loss
 
 
 class TestCopulaModelPerf(unittest.TestCase):
@@ -195,6 +253,33 @@ class TestCopulaModelPerf(unittest.TestCase):
 
     def test_loopScalability_32(self):
         self.loopScalabilityTest(32, "pyfora.BigBox.LoopScalabilityTest.32Threads")
+
+    def numpyLoopScalabilityTest(self, n_processes, testName):
+        pool = multiprocessing.Pool(n_processes)
+        t0 = time.time()
+        n_samples = 20000
+        pool.map(numpy_func, [n_samples] * n_processes)
+        t_elapsed = time.time() - t0
+
+        PerformanceTestReporter.recordTest(testName, t_elapsed, None)
+        
+    def test_numpyScalability_1(self):
+        self.numpyLoopScalabilityTest(1, "pyfora.BigBox.NumpyLoopScalabilityTest.01Processes")
+
+    def test_numpyScalability_2(self):
+        self.numpyLoopScalabilityTest(2, "pyfora.BigBox.NumpyLoopScalabilityTest.02Processes")
+
+    def test_numpyScalability_4(self):
+        self.numpyLoopScalabilityTest(4, "pyfora.BigBox.NumpyLoopScalabilityTest.04Processes")
+
+    def test_numpyScalability_8(self):
+        self.numpyLoopScalabilityTest(8, "pyfora.BigBox.NumpyLoopScalabilityTest.08Processes")
+
+    def test_numpyScalability_16(self):
+        self.numpyLoopScalabilityTest(16, "pyfora.BigBox.NumpyLoopScalabilityTest.16Processes")
+
+    def test_numpyScalability_32(self):
+        self.numpyLoopScalabilityTest(32, "pyfora.BigBox.NumpyLoopScalabilityTest.32Processes")
 
 
 if __name__ == "__main__":
