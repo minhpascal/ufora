@@ -23,5 +23,3 @@ Developers should visit [ufora-dev](https://groups.google.com/forum/#!forum/ufor
 
 The development of Ufora is ongoing, and led by [Ufora Inc.](http://www.ufora.com/).
 Don't hesitate to [Drop us a line](mailto:info@ufora.com) if you'd like to get involved or need enterprise support.
-
-
