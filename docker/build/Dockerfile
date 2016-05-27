@@ -97,6 +97,7 @@ RUN dpkg -i cuda-repo-ubuntu1404_7.5-18_amd64.deb
 
 RUN apt-get update
 
-RUN apt-get install -y --no-install-recommends --force-yes cuda-nvrtc-7-5 \
+RUN apt-get install -y --no-install-recommends --force-yes cuda-nvrtc-7-5 cuda-cudart-dev-7-5\
     cuda-cudart-7-5 cuda-drivers=352.79-1 libcuda1-352=352.79-0ubuntu1 cuda-core-7-5 cuda-driver-dev-7-5
 
+RUN echo "/usr/local/cuda-7.5/lib64" > /etc/ld.so.conf.d/cuda64.conf && ldconfig
