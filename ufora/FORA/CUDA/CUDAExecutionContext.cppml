@@ -482,8 +482,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 			);
 
 	uword_t elementCount = sourceVectorHandle.size();
-	lassert(ExecutionContext::currentExecutionContext());
-	MemoryPool* pool = ExecutionContext::currentExecutionContext()->getMemoryPool();
 	LOG_DEBUG << "executeKernel(2): 3";
 
 	//create a aligned vectors
@@ -523,7 +521,6 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 	lassert(sourceVectorHandle.dataPtr()->unpagedValues()->size() == elementCount);
 
 	LOG_DEBUG << "executeKernel(2): 6";
-	LOG_DEBUG << "before executeFunction cudaOutVecIndex points to " << (unsigned long)cudaOutVecIndex;
 	mCUDAState->executeFunction(
 		inKernelName,
 		cudaClosureData,
@@ -532,8 +529,9 @@ ImplValContainer	CUDAExecutionContext::executeKernel(
 		cudaOutVecDataVectors,
 		cudaOutVecIndex
 		);
-	LOG_DEBUG << "after executeFunction cudaOutVecIndex points to " << (unsigned long)cudaOutVecIndex;
 	LOG_DEBUG << "executeKernel(2): 7";
+	lassert(ExecutionContext::currentExecutionContext());
+	MemoryPool* pool = ExecutionContext::currentExecutionContext()->getMemoryPool();
 	auto res = createFORAVector(
 					cudaOutVecIndex,
 					indexElementType.alignedSize(),
