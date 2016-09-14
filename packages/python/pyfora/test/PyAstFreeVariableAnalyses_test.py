@@ -23,6 +23,11 @@ import textwrap
 import unittest
 
 class PyAstFreeVariableAnalyses_test(unittest.TestCase):
+    def setUp(self):
+        filename = '../pyAst/PyAstUtil.py'
+        with open(filename) as fh:
+            self.some_python_code = fh.read()
+
     def test_multiple_assignment(self):
         tree = ast.parse(
             textwrap.dedent(
@@ -1074,14 +1079,7 @@ class PyAstFreeVariableAnalyses_test(unittest.TestCase):
             )
 
     def test_TransvisitorsDontModifyTree(self):
-        tree = ast.parse(
-            textwrap.dedent(
-                """
-                def g(x):
-                    return x.y.z
-                """
-                )
-            )
+        tree = ast.parse(self.some_python_code)
         tree1 = copy.deepcopy(tree)
         noopTransformer = NodeVisitorBases.SemanticOrderNodeTransvisitor()
         tree2 = noopTransformer.visit(tree1)
@@ -1097,6 +1095,13 @@ class PyAstFreeVariableAnalyses_test(unittest.TestCase):
 
         self.assertTrue(tree3 is not None, 'tree3 is None')
         self.assertTrue(PyAstUtil.areAstsIdentical(tree, tree3))
+
+        freeVarsVisitor = PyAstFreeVariableAnalyses._FreeVariableMemberAccessChainsTransvisitor()
+        tree4 = freeVarsVisitor.visit(tree1)
+
+        self.assertTrue(tree4 is not None, 'tree4 is None')
+        self.assertTrue(PyAstUtil.areAstsIdentical(tree, tree4))
+
 
     def test_FreeVariableTransformer_1(self):
         tree = ast.parse(
