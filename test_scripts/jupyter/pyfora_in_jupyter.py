@@ -109,7 +109,7 @@ class PyforaInJupyterTest(unittest.TestCase):
                   "\\s*ValueError: math domain error"        
         
         match = re.match(pattern, outputString, re.DOTALL)
-        self.assertIsNotNone(match)
+        self.assertIsNotNone(match, outputString)
 
         
 
