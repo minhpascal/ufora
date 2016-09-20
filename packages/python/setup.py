@@ -13,6 +13,7 @@
 #   limitations under the License.
 
 from setuptools import setup, find_packages
+from distutils.core import Extension
 import os
 import re
 
@@ -33,6 +34,14 @@ version = read_package_version()
 
 install_requires = ['futures', 'socketIO-client>=0.6.5', 'numpy', 'wsaccel']
 
+ext_modules = []
+
+stringbuildermodule = Extension('pyfora.stringbuilder',
+                                language='c++',
+                                sources=['pyfora/src/StringBuilder.cpp',
+                                         'pyfora/src/stringbuildermodule.cpp']
+                                )
+ext_modules.append(stringbuildermodule)
 
 setup(
     name='pyfora',
@@ -65,6 +74,7 @@ setup(
     entry_points={
         'console_scripts':
             ['pyfora_aws=pyfora.aws.pyfora_aws:main']
-    }
+    },
+    ext_modules=ext_modules
 )
 
