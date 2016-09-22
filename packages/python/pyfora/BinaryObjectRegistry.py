@@ -15,6 +15,9 @@
 import struct
 import json
 
+from pyfora.stringbuilder import StringBuilder as StringBuilderNative
+
+
 class StringBuilder:
     """StringBuilder
 
@@ -94,7 +97,7 @@ class BinaryObjectRegistry(object):
         self._nextObjectID = 0
 
         if stringBuilderFactory is None:
-            stringBuilderFactory = StringBuilder
+            stringBuilderFactory = StringBuilderNative
 
         self._builderFactory = stringBuilderFactory
         self._builder = stringBuilderFactory()
