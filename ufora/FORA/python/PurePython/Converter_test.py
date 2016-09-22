@@ -13,24 +13,18 @@
 #   limitations under the License.
 
 import unittest
-import os
-import base64
 import numpy
 import multiprocessing
 import cPickle as pickle
 import time
 
-import ufora.FORA.python.ModuleDirectoryStructure as ModuleDirectoryStructure
 import pyfora.PureImplementationMappings as PureImplementationMappings
-import pyfora.PureImplementationMapping as PureImplementationMapping
 import pyfora.PyObjectWalker as PyObjectWalker
 import pyfora.ObjectRegistry as ObjectRegistry
 import pyfora.BinaryObjectRegistry as BinaryObjectRegistry
 import pyfora.BinaryObjectRegistryDeserializer as BinaryObjectRegistryDeserializer
-import pyfora.NamedSingletons as NamedSingletons
 import pyfora.PythonObjectRehydrator as PythonObjectRehydrator
 import pyfora.TypeDescription as TypeDescription
-import pyfora
 import ufora.FORA.python.PurePython.Converter as Converter
 import ufora.FORA.python.PurePython.PyforaToJsonTransformer as PyforaToJsonTransformer
 import ufora.test.PerformanceTestReporter as PerformanceTestReporter
