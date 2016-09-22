@@ -90,9 +90,14 @@ CODE_STACKTRACE_AS_JSON=23
 
 class BinaryObjectRegistry(object):
     """Plugin for the PyObjectWalker to push python objects into. Converts directly into a binary format."""
-    def __init__(self):
+    def __init__(self, stringBuilderFactory=None):
         self._nextObjectID = 0
-        self._builder = StringBuilder()
+
+        if stringBuilderFactory is None:
+            stringBuilderFactory = StringBuilder
+
+        self._builderFactory = stringBuilderFactory
+        self._builder = stringBuilderFactory()
         self.unconvertibleIndices = set()
 
     def bytecount(self):
@@ -102,7 +107,7 @@ class BinaryObjectRegistry(object):
         return self._builder.str()
 
     def clear(self):
-        self._builder = StringBuilder()
+        self._builder = self._builderFactory()
 
     def getDefinition(self, objectId):
         return self.objectIdToObjectDefinition[objectId]
