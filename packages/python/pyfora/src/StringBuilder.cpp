@@ -46,9 +46,20 @@ void StringBuilder::addInt64s(const std::vector<int64_t>& integers) {
     }
 
 
+void StringBuilder::addInt64s(const std::vector<uint64_t>& integers) {
+    addInt64s(reinterpret_cast<const int64_t*>(&integers[0]), integers.size());
+    }
+
+
 void StringBuilder::addInt64s(const int64_t* integers, uint64_t nIntegers) {
     addInt64(nIntegers);
     _write(reinterpret_cast<const char*>(integers), nIntegers * sizeof(int64_t));
+    }
+
+
+void StringBuilder::addInt64s(const uint64_t* integers, uint64_t nIntegers) {
+    addInt64(nIntegers);
+    _write(reinterpret_cast<const char*>(integers), nIntegers * sizeof(uint64_t));
     }
 
 
@@ -80,4 +91,18 @@ void StringBuilder::addStrings(const std::vector<std::string>& strings) {
 void StringBuilder::_write(const char* data, uint64_t byteCount) {
     mStream.write(data, byteCount);
     mByteCount += byteCount;
+    }
+
+
+void StringBuilder::addStringTuple(const std::string& s) {
+    addInt32(s.size());
+    for (uint64_t ix = 0; ix < s.size(); ++ix)
+        addString(std::string(1, s[ix]));
+    }
+        
+
+void StringBuilder::addStringTuple(const char* s, uint64_t byteCount) {
+    addInt32(byteCount);
+    for (uint64_t ix = 0; ix < byteCount; ++ix)
+        addString(std::string(1, s[ix]));
     }
