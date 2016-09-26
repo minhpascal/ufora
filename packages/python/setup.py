@@ -40,7 +40,8 @@ stringbuildermodule = Extension('pyfora.stringbuilder',
                                 language='c++',
                                 sources=['pyfora/src/StringBuilder.cpp',
                                          'pyfora/src/stringbuildermodule.cpp',
-                                         'pyfora/src/BinaryObjectRegistry.cpp']
+                                         'pyfora/src/BinaryObjectRegistry.cpp',
+                                         'pyfora/src/StringDeserializer.cpp']
                                 )
 ext_modules.append(stringbuildermodule)
 
