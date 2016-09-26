@@ -52,6 +52,7 @@ static void
 PyStringBuilder_dealloc(PyStringBuilder* self)
     {
     delete self->nativeStringBuilder;
+    self->nativeStringBuilder = 0;
     self->ob_type->tp_free((PyObject*)self);
     }
 
@@ -69,8 +70,9 @@ PyStringBuilder_addString(PyStringBuilder* self, PyObject* args)
     char* s = NULL;
     int length = -1;
 
-    if (!PyArg_ParseTuple(args, "s#", &s, &length))
+    if (!PyArg_ParseTuple(args, "s#", &s, &length)) {
         return NULL;
+        }
 
     self->nativeStringBuilder->addString(s, length);
 
@@ -83,8 +85,9 @@ PyStringBuilder_addByte(PyStringBuilder* self, PyObject* args)
     {
     char b = 0;
 
-    if (!PyArg_ParseTuple(args, "b", &b))
+    if (!PyArg_ParseTuple(args, "b", &b)) {
         return NULL;
+        }
 
     self->nativeStringBuilder->addByte(b);
 
@@ -97,8 +100,9 @@ PyStringBuilder_addInt32(PyStringBuilder* self, PyObject* args)
     {
     int i = 0;
 
-    if (!PyArg_ParseTuple(args, "i", &i))
+    if (!PyArg_ParseTuple(args, "i", &i)) {
         return NULL;
+        }
 
     self->nativeStringBuilder->addInt32(i);
 
@@ -111,8 +115,9 @@ PyStringBuilder_addInt64(PyStringBuilder* self, PyObject* args)
     {
     long int l = 0;
 
-    if (!PyArg_ParseTuple(args, "l", &l))
+    if (!PyArg_ParseTuple(args, "l", &l)) {
         return NULL;
+        }
 
     self->nativeStringBuilder->addInt64(l);
 
@@ -125,8 +130,9 @@ PyStringBuilder_addFloat64(PyStringBuilder* self, PyObject* args)
     {
     double d = 0.0;
 
-    if (!PyArg_ParseTuple(args, "d", &d))
+    if (!PyArg_ParseTuple(args, "d", &d)) {
         return NULL;
+        }
 
     self->nativeStringBuilder->addFloat64(d);
 
@@ -143,8 +149,9 @@ PyStringBuilder_addInt64s(PyStringBuilder* self, PyObject* args)
     PyObject* exc = NULL;
     std::vector<int64_t> ints;
 
-    if (!PyArg_ParseTuple(args, "O", &obj))
+    if (!PyArg_ParseTuple(args, "O", &obj)) {
         return NULL;
+        }
 
     iterator = PyObject_GetIter(obj);
     if (iterator == NULL) {
@@ -191,7 +198,7 @@ PyStringBuilder_addStrings(PyStringBuilder* self, PyObject* args)
     PyObject* exc = NULL;
     std::vector<std::string> strings;
     char* string = NULL;
-    long length = -1;
+    Py_ssize_t length = 0;
 
     if (!PyArg_ParseTuple(args, "O", &obj))
         return NULL;
@@ -312,7 +319,7 @@ static PyTypeObject PyStringBuilderType = {
     0,                                         /* tp_setattro */
     0,                                         /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,  /* tp_flags */
-    "PyStringBuilder objects",                 /* tp_doc */
+    "StringBuilder objects",                   /* tp_doc */
     0,                                         /* tp_traverse */
     0,                                         /* tp_clear */
     0,                                         /* tp_richcompare */
@@ -354,7 +361,7 @@ initstringbuilder(void)
 
     m = Py_InitModule3("stringbuilder",
                       module_methods,
-                      "example module to expose StringBuilder C++ class");
+                      "expose StringBuilder C++ class");
 
     if (m == NULL)
         return;
@@ -365,8 +372,6 @@ initstringbuilder(void)
         "StringBuilder",
         (PyObject*)&PyStringBuilderType);
     }
-
-
 
 } // extern "C"
 

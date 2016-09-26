@@ -255,7 +255,8 @@ class BinaryObjectRegistry(object):
         scopeIds: a dict freeVariableMemberAccessChain -> id
         """
         self._builder.addInt32(len(scopeIds))
-        for chain,childObjectId in scopeIds.iteritems():
+        for chain in sorted(scopeIds.keys()):
+            childObjectId = scopeIds[chain]
             assert isinstance(chain, str)
             self._builder.addString(chain)
             self._builder.addInt64(childObjectId)

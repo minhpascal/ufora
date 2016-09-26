@@ -15,12 +15,17 @@
 ****************************************************************************/
 #pragma once
 
+#include <Python.h>
+
 #include <map>
 #include <set>
 #include <stdint.h>
 #include <string>
 
 #include "StringBuilder.hpp"
+
+
+class FreeVariableMemberAccessChain;
 
 
 class BinaryObjectRegistry {
@@ -64,7 +69,7 @@ public:
         mStringBuilder.clear();
         }
         
-    inline uint64_t allocateObject();
+    int64_t allocateObject();
 
     template<class T>
     void definePrimitive(uint64_t objectId, const T& t) {
@@ -72,113 +77,75 @@ public:
         _writePrimitive(t);
         }
 
-    inline void defineEndOfStream();
-    inline void defineTuple(uint64_t objectId,
-                            const std::vector<uint64_t>& memberIds);
-    inline void defineTuple(uint64_t objectId,
-                            const uint64_t* memberIds,
-                            uint64_t nMemberIds);
-    inline void defineList(uint64_t objectId,
-                           const std::vector<uint64_t>& memberIds);
-    inline void defineList(uint64_t objectId,
-                           const uint64_t* memberIds,
-                           uint64_t nMemberIds);
-    inline void defineFile(uint64_t objectId,
-                           const std::string& text,
-                           const std::string& path);
-    void defineDict(uint64_t objectId,
-                    const std::vector<uint64_t>& keyIds,
-                    const std::vector<uint64_t>& valueIds);
-    // TODO: DEFINE REMOTEPYTHONOBJECT???
-    inline void defineBuiltinExceptionInstance(uint64_t objectId,
-                                               const std::string& typeName,
-                                               int64_t argsId);
-    inline void defineNamedSingleton(uint64_t objectId,
-                                     const std::string& singletonName);
-    // TODO defineFunction
-    // TODO defineClass
-    void defineUnconvertible(uint64_t objectId, const std::string& modulePath);
+    void defineEndOfStream();
+    void defineTuple(int64_t objectId,
+                     const std::vector<int64_t>& memberIds);
+    void defineTuple(int64_t objectId,
+                     const int64_t* memberIds,
+                     uint64_t nMemberIds);
+    void defineList(int64_t objectId,
+                    const std::vector<int64_t>& memberIds);
+    void defineList(int64_t objectId,
+                    const int64_t* memberIds,
+                    uint64_t nMemberIds);
+    void defineFile(int64_t objectId,
+                    const std::string& text,
+                    const std::string& path);
+    void defineDict(int64_t objectId,
+                    const std::vector<int64_t>& keyIds,
+                    const std::vector<int64_t>& valueIds);
+    // TODO: DEFINE REMOTEPYTHONOBJECT
+    void defineBuiltinExceptionInstance(int64_t objectId,
+                                        const std::string& typeName,
+                                        int64_t argsId);
+    void defineNamedSingleton(int64_t objectId,
+                              const std::string& singletonName);
+    void defineFunction(
+        int64_t objectId,
+        int64_t sourceFileId,
+        int64_t linenumber,
+        const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId
+        );
+    void defineClass(
+        int64_t objectId,
+        int64_t sourceFileId,
+        int64_t lineNumber,
+        const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId,
+        const std::vector<int64_t> baseClassIds
+        );
+    void defineUnconvertible(int64_t objectId, PyObject* modulePathOrNone);
     void defineClassInstance(
-        uint64_t objectId,
-        uint64_t classId,
-        const std::map<std::string, uint64_t>& classMemberNameToClassMemberId);
-    void defineInstanceMethod(uint64_t objectId,
-                              uint64_t instanceId,
+        int64_t objectId,
+        int64_t classId,
+        const std::map<std::string, int64_t>& classMemberNameToClassMemberId);
+    void defineInstanceMethod(int64_t objectId,
+                              int64_t instanceId,
                               const std::string& methodName);
     // TODO defineWithBlock
-    void definePyAbortException(uint64_t objectId,
+    void definePyAbortException(int64_t objectId,
                                 const std::string& typeName,
-                                uint64_t argsId);
+                                int64_t argsId);
     // TODO defineStackTrace
 
-    template<class T>
-    void definePackedHomogeneousData(uint64_t objectId,
-                                     const T& dtype,
-                                     const std::string& dataAsBytes)
-        {
-        mStringBuilder.addInt64(objectId);
-        mStringBuilder.addByte(CODE_PACKED_HOMOGENOUS_DATA);
-
-        _packedWrite(dtype);
-
-        mStringBuilder.addString(dataAsBytes);
-        }
-
-    template<class T>
-    void definePackedHomogeneousData(uint64_t objectId,
-                                     const T& dtype,
-                                     const char* dataAsBytes,
-                                     uint64_t bytes)
-        {
-        mStringBuilder.addInt64(objectId);
-        mStringBuilder.addByte(CODE_PACKED_HOMOGENOUS_DATA);
-
-        _packedWrite(dtype);
-
-        mStringBuilder.addString(dataAsBytes, bytes);
-        }
-
-    bool isUnconvertible(uint64_t objectId) {
-        return mUnconvertibleIndices.find(objectId) != 
-            mUnconvertibleIndices.end();
-        }
-
+    void definePackedHomogenousData(int64_t objectId,
+                                    PyObject* val);
 
 private:
     StringBuilder mStringBuilder;
-    uint64_t mNextObjectId;
-    std::set<uint64_t> mUnconvertibleIndices;
+    int64_t mNextObjectId;
+    std::set<int64_t> mUnconvertibleIndices;
 
-    inline void _writePrimitive(bool b);
-    inline void _writePrimitive(int32_t i);
-    inline void _writePrimitive(int64_t l);
-    inline void _writePrimitive(double d);
-    inline void _writePrimitive(const std::string& s);
+    void _writePrimitive(bool b);
+    void _writePrimitive(int32_t i);
+    void _writePrimitive(int64_t l);
+    void _writePrimitive(double d);
+    void _writePrimitive(const std::string& s);
+    void _writePrimitive(PyObject* pyObject);
 
-    inline void _packedWrite(int32_t i);
-    inline void _packedWrite(int64_t i);
-    inline void _packedWrite(const std::string& s);
+    void _writeDTypeElement(PyObject* val);
 
-    template<typename T>
-    void _packedWrite(const std::vector<T>& dtype) {
-        mStringBuilder.addByte(CODE_TUPLE);
-        mStringBuilder.addInt32(dtype.size());
-        for (typename std::vector<T>::const_iterator it = dtype.begin();
-             it != dtype.end();
-             ++it)
-            _packedWrite(*it);
-        }
-
-    // DON'T KNOW HOW TO DEAL WITH PYTHON LONGS!
-
-    template<typename T>
-    void _writePrimitive(const std::vector<T>& primitives) {
-        mStringBuilder.addByte(CODE_LIST_OF_PRIMITIVES);
-        mStringBuilder.addInt64(primitives.size());
-        for (typename std::vector<T>::const_iterator it = primitives.begin();
-             it != primitives.end();
-             ++it)
-            _writePrimitive(*it);
-        }
+    void _writeFreeVariableResolutions(
+        const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId
+        );
 
     };

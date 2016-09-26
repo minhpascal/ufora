@@ -21,11 +21,6 @@ StringBuilder::StringBuilder() : mByteCount(0)
     }
 
 
-StringBuilder::~StringBuilder()
-    {
-    }
-    
-
 void StringBuilder::addByte(char b) {
     _add(b);
     }
@@ -46,20 +41,9 @@ void StringBuilder::addInt64s(const std::vector<int64_t>& integers) {
     }
 
 
-void StringBuilder::addInt64s(const std::vector<uint64_t>& integers) {
-    addInt64s(reinterpret_cast<const int64_t*>(&integers[0]), integers.size());
-    }
-
-
 void StringBuilder::addInt64s(const int64_t* integers, uint64_t nIntegers) {
     addInt64(nIntegers);
     _write(reinterpret_cast<const char*>(integers), nIntegers * sizeof(int64_t));
-    }
-
-
-void StringBuilder::addInt64s(const uint64_t* integers, uint64_t nIntegers) {
-    addInt64(nIntegers);
-    _write(reinterpret_cast<const char*>(integers), nIntegers * sizeof(uint64_t));
     }
 
 

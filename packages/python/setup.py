@@ -39,11 +39,42 @@ ext_modules = []
 stringbuildermodule = Extension('pyfora.stringbuilder',
                                 language='c++',
                                 sources=['pyfora/src/StringBuilder.cpp',
-                                         'pyfora/src/stringbuildermodule.cpp',
-                                         'pyfora/src/BinaryObjectRegistry.cpp',
-                                         'pyfora/src/StringDeserializer.cpp']
+                                         'pyfora/src/stringbuildermodule.cpp']
                                 )
 ext_modules.append(stringbuildermodule)
+
+binaryobjectregistrymodule = Extension('pyfora.binaryobjectregistry',
+                                       language='c++',
+                                       sources=['pyfora/src/BinaryObjectRegistry.cpp',
+                                                'pyfora/src/StringDeserializer.cpp',
+                                                'pyfora/src/PyObjectWalker.cpp',
+                                                'pyfora/src/binaryobjectregistrymodule.cpp',
+                                                'pyfora/src/StringBuilder.cpp',
+                                                'pyfora/src/FileDescription.cpp',
+                                                'pyfora/src/PyObjectUtils.cpp',
+                                                'pyfora/src/PyAstUtil.cpp',
+                                                'pyfora/src/FreeVariableMemberAccessChain.cpp',
+                                                'pyfora/src/PyAstFreeVariableAnalyses.cpp',
+                                                'pyfora/src/PyforaInspect.cpp',
+                                                'pyfora/src/FreeVariableResolver.cpp']
+                                       )
+ext_modules.append(binaryobjectregistrymodule)
+
+pyobjectwalkermodule = Extension('pyfora.pyobjectwalker',
+                                 language='c++',
+                                 sources=['pyfora/src/pyobjectwalkermodule.cpp',
+                                          'pyfora/src/PyObjectWalker.cpp',
+                                          'pyfora/src/BinaryObjectRegistry.cpp',
+                                          'pyfora/src/FileDescription.cpp',
+                                          'pyfora/src/StringBuilder.cpp',
+                                          'pyfora/src/PyObjectUtils.cpp',
+                                          'pyfora/src/FreeVariableResolver.cpp',
+                                          'pyfora/src/PyAstUtil.cpp',
+                                          'pyfora/src/FreeVariableMemberAccessChain.cpp',
+                                          'pyfora/src/PyAstFreeVariableAnalyses.cpp',
+                                          'pyfora/src/PyforaInspect.cpp'])
+ext_modules.append(pyobjectwalkermodule)
+
 
 setup(
     name='pyfora',
