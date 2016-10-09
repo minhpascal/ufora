@@ -40,12 +40,6 @@ void BinaryObjectRegistry::_writePrimitive(bool b) {
     }
 
 
-void BinaryObjectRegistry::_writePrimitive(int32_t i) {
-    mStringBuilder.addByte(CODE_INT);
-    mStringBuilder.addInt64(i);
-    }
-
-
 void BinaryObjectRegistry::_writePrimitive(int64_t i) {
     mStringBuilder.addByte(CODE_INT);
     mStringBuilder.addInt64(i);
@@ -78,7 +72,8 @@ void BinaryObjectRegistry::_writePrimitive(PyObject* obj) {
             }
         }
     else if (PyInt_Check(obj)) {
-        _writePrimitive(PyInt_AS_LONG(obj));
+        // TODO: should do a safe conversion here ...
+        _writePrimitive((int64_t)PyInt_AS_LONG(obj));
         }
     else if (PyFloat_Check(obj)) {
         _writePrimitive(PyFloat_AS_DOUBLE(obj));

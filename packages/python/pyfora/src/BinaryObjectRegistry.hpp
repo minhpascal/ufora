@@ -136,7 +136,6 @@ private:
     std::set<int64_t> mUnconvertibleIndices;
 
     void _writePrimitive(bool b);
-    void _writePrimitive(int32_t i);
     void _writePrimitive(int64_t l);
     void _writePrimitive(double d);
     void _writePrimitive(const std::string& s);
