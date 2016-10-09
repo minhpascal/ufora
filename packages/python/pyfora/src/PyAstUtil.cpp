@@ -37,17 +37,6 @@ PyAstUtil::PyAstUtil()
     }
 
 
-PyAstUtil::~PyAstUtil()
-    {
-    Py_XDECREF(mClassDefAtLineNumberFun);
-    Py_XDECREF(mFunctionDefOrLambdaAtLineNumberFun);
-    Py_XDECREF(mPyAstFromTextFun);
-    Py_XDECREF(mGetSourceLinesFun);
-    Py_XDECREF(mGetSourceFilenameAndTextFun);
-    Py_XDECREF(mPyAstUtilModule);
-    }
-
-
 void PyAstUtil::_initClassDefAtLineNumberFun()
     {
     mClassDefAtLineNumberFun =

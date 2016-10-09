@@ -31,18 +31,6 @@ PyforaInspect::PyforaInspect() :
     }
 
 
-PyforaInspect::~PyforaInspect()
-    {
-    Py_XDECREF(mGetLinesFunc);
-    Py_XDECREF(mPyforaInspectModule);
-    Py_XDECREF(mPyforaModule);
-    Py_XDECREF(mModuleType);
-    Py_XDECREF(mFunctionType);
-    Py_XDECREF(mTypeType);
-    Py_XDECREF(mClassType);
-    }
-
-
 void PyforaInspect::_initMembers()
     {
     PyObject* typesModule = PyImport_ImportModule("types");

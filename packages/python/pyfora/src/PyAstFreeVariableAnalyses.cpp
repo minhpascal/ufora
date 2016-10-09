@@ -28,13 +28,6 @@ PyAstFreeVariableAnalyses::PyAstFreeVariableAnalyses()
     }
 
 
-PyAstFreeVariableAnalyses::~PyAstFreeVariableAnalyses()
-    {
-    Py_XDECREF(mGetFreeVariableMemberAccessChainsFun);
-    Py_XDECREF(mPyAstFreeVariableAnalysesModule);
-    }
-
-
 void PyAstFreeVariableAnalyses::_initPyAstFreeVariableAnalysesModule()
     {
     PyObject* pyforaModule = PyImport_ImportModule("pyfora");

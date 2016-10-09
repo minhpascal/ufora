@@ -20,8 +20,6 @@
 
 class PyforaInspect {
 public:
-    ~PyforaInspect();
-    
     static bool isclass(PyObject*);
     static bool isclassinstance(PyObject*);
     static bool isfunction(PyObject*);

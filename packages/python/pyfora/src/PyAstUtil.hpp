@@ -23,8 +23,6 @@
 
 class PyAstUtil {
 public:
-    ~PyAstUtil();
-
     static std::pair<std::string, std::string> sourceFilenameAndText(PyObject*);
     static long startingSourceLine(PyObject*);
 

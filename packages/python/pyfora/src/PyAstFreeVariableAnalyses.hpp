@@ -20,8 +20,6 @@
 
 class PyAstFreeVariableAnalyses {
 public:
-    ~PyAstFreeVariableAnalyses();
-
     static PyObject*  getFreeMemberAccessChainsWithPositions(
         PyObject* pyAst,
         bool isClassContext,
