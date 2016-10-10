@@ -16,12 +16,14 @@ from pyfora.binaryobjectregistry import BinaryObjectRegistry as BinaryObjectRegi
 from pyfora.BinaryObjectRegistry import BinaryObjectRegistry as BinaryObjectRegistryPure
 import pyfora.PureImplementationMappings as PureImplementationMappings
 import pyfora.PureImplementationMapping as PureImplementationMapping
+import pyfora.PyforaWithBlock as PyforaWithBlock
 from pyfora.PyObjectWalker import PyObjectWalker as PyObjectWalkerPure
 from pyfora.pyobjectwalker import PyObjectWalker as PyObjectWalkerNative
 import pyfora.NamedSingletons as NamedSingletons
 
 import ast
 import numpy
+import os
 import time
 import unittest
 
@@ -98,8 +100,8 @@ class PyObjectWalkerTest(unittest.TestCase):
         objectRegistry2 = BinaryObjectRegistryPure()
         pureWalker = PyObjectWalkerPure(mappings, objectRegistry2)
 
-        nativeWalker.walkPyObject(pyObject)
         pureWalker.walkPyObject(pyObject)
+        nativeWalker.walkPyObject(pyObject)
 
         self.assertEqual(objectRegistry1.str(), objectRegistry2.str())
 
@@ -253,6 +255,31 @@ class PyObjectWalkerTest(unittest.TestCase):
 
         self.assertWalkersEquivalent(e)
 
+    def test_PyObjectWalker_withBlocks_1(self):
+        import pyfora.test.withBlockExamples as withBlockExamples
+
+        filename = withBlockExamples.__file__
+        if filename.endswith("pyc"):
+            filename = filename[:-1]
+
+        with open(filename) as f:
+            sourceText = f.read()
+
+        withBlock = PyforaWithBlock.PyforaWithBlock(
+            lineNumber=41,
+            sourceText=sourceText,
+            boundVariables={
+                'w':1,
+                'y':2,
+                'f':withBlockExamples.f,
+                'C':withBlockExamples.C,
+                'c':withBlockExamples.C(3)
+                },
+            sourceFileName=filename,
+            unboundLocals=[]
+            )
+
+        self.assertWalkersEquivalent(withBlock)
 
 if __name__ == "__main__":
     unittest.main()

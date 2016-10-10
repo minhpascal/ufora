@@ -15,6 +15,7 @@
 ****************************************************************************/
 #include "PyObjectWalker.hpp"
 
+#include "Ast.hpp"
 #include "ClassOrFunctionInfo.hpp"
 #include "FileDescription.hpp"
 #include "FreeVariableResolver.hpp"
@@ -23,6 +24,7 @@
 #include "PyforaInspect.hpp"
 #include "PyObjectUtils.hpp"
 
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -40,6 +42,7 @@ PyObjectWalker::PyObjectWalker(
             mExcludePredicateFun(excludePredicateFun),
             mExcludeList(excludeList),
             mTerminalValueFilter(terminalValueFilter),
+            mWithBlockClass(NULL),
             mObjectRegistry(objectRegistry),
             mFreeVariableResolver(excludeList, terminalValueFilter)
     {
@@ -52,6 +55,7 @@ PyObjectWalker::PyObjectWalker(
     _initRemotePythonObjectClass();
     _initPackedHomogenousDataClass();
     _initFutureClass();
+    _initWithBlockClass();
     }
 
 
@@ -62,6 +66,25 @@ void PyObjectWalker::_initPyforaModule()
     if (mPyforaModule == NULL) {
         PyErr_Print();
         throw std::logic_error("couldn't import pyfora module");
+        }
+    }
+
+
+void PyObjectWalker::_initWithBlockClass()
+    {
+    PyObject* withBlockModule =
+        PyObject_GetAttrString(mPyforaModule, "PyforaWithBlock");
+    if (withBlockModule == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error getting PyforaWithBlock module");
+        }
+
+    mWithBlockClass = PyObject_GetAttrString(withBlockModule, "PyforaWithBlock");
+    Py_DECREF(withBlockModule);
+    if (mWithBlockClass == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error getting PyforaWithBlock class from "
+                               "PyforaWithBlock module");
         }
     }
 
@@ -186,6 +209,7 @@ PyObjectWalker::~PyObjectWalker()
          ++it) {
         Py_DECREF(it->first);
         }
+    Py_XDECREF(mWithBlockClass);
     Py_XDECREF(mTerminalValueFilter);
     Py_XDECREF(mExcludeList);
     Py_XDECREF(mExcludePredicateFun);
@@ -364,6 +388,10 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
         {
         _registerTypeOrBuiltinFunctionNamedSingleton(objectId, pyObject);
         }
+    else if (PyObject_IsInstance(pyObject, mWithBlockClass))
+        {
+        _registerWithBlock(objectId, pyObject);
+        }
     else if (PyTuple_Check(pyObject))
         {
         _registerTuple(objectId, pyObject);
@@ -520,21 +548,12 @@ bool PyObjectWalker::_isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyOb
     }
 
 
-std::string PyObjectWalker::_fileText(const std::string& filename)
+std::string PyObjectWalker::_fileText(PyObject* fileNamePyObj) const
     {
-    PyObject* fileNamePyObj = PyString_FromStringAndSize(filename.data(),
-                                                         filename.size());
-
-    if (fileNamePyObj == NULL) {
-        throw std::logic_error("couldn't create a python string out of a std::string");
-        }
-
     PyObject* lines = PyforaInspect::getlines(fileNamePyObj);
-    Py_DECREF(fileNamePyObj);
-
     if (lines == NULL) {
         throw std::logic_error(
-            "error calling getlines func on string `" + filename + "`");
+            "error calling getlines");
         }
     if (not PyList_Check(lines)) {
         Py_DECREF(lines);
@@ -559,6 +578,22 @@ std::string PyObjectWalker::_fileText(const std::string& filename)
     }
 
 
+std::string PyObjectWalker::_fileText(const std::string& filename) const
+    {
+    PyObject* fileNamePyObj = PyString_FromStringAndSize(filename.data(),
+                                                         filename.size());
+    if (fileNamePyObj == NULL) {
+        throw std::logic_error("couldn't create a python string out of a std::string");
+        }
+
+    std::string tr =  _fileText(fileNamePyObj);
+
+    Py_DECREF(fileNamePyObj);
+
+    return tr;
+    }
+
+
 void PyObjectWalker::_registerTypeOrBuiltinFunctionNamedSingleton(int64_t objectId,
                                                                   PyObject* pyObject)
     {
@@ -573,6 +608,178 @@ void PyObjectWalker::_registerTypeOrBuiltinFunctionNamedSingleton(int64_t object
         }
 
     mObjectRegistry.defineNamedSingleton(objectId, it->second);
+    }
+
+
+namespace {
+
+int64_t _getWithBlockLineNumber(PyObject* withBlock)
+    {
+    int64_t lineno;
+    PyObject* pyLineNumber = PyObject_GetAttrString(withBlock, "lineNumber");
+    if (pyLineNumber == NULL) {
+        throw std::logic_error("error getting lineNumber attr in _registerWithBlock");
+        }
+    if (not PyInt_Check(pyLineNumber)) {
+        PyErr_Print();
+        Py_DECREF(pyLineNumber);
+        throw std::logic_error("expected lineNumber to be an int");
+        }
+    lineno = PyInt_AS_LONG(pyLineNumber);
+    Py_DECREF(pyLineNumber);
+
+    return lineno;
+    }
+
+}
+
+
+void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
+    {
+    int64_t lineno = _getWithBlockLineNumber(pyObject);
+
+    PyObject* withBlockFun = _withBlockFun(pyObject, lineno);
+    if (withBlockFun == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error getting with block ast functionDef");
+        }
+    if (PyAstUtil::hasReturnInOuterScope(withBlockFun)) {
+        throw std::logic_error("return statement not supported in pyfora with-block");
+        }
+    if (PyAstUtil::hasYieldInOuterScope(withBlockFun)) {
+        throw std::logic_error("yield expression not supported in pyfora with-block");
+        }
+
+    PyObject* chainsWithPositions = _freeMemberAccessChainsWithPositions(withBlockFun);
+    if (chainsWithPositions == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error getting freeMemberAccessChainsWithPositions");
+        }
+
+    PyObject* boundVariables = PyObject_GetAttrString(pyObject, "boundVariables");
+    if (boundVariables == NULL) {
+        PyErr_Print();
+        throw std::logic_error("couldn't get boundVariables attr");
+        }
+
+    _augmentChainsWithBoundValuesInScope(
+        pyObject,
+        withBlockFun,
+        boundVariables,
+        chainsWithPositions);
+
+    Py_DECREF(withBlockFun);
+    
+    PyObject* pyConvertedObjectCache = _getPyConvertedObjectCache();
+    if (pyConvertedObjectCache == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error getting pyConvertedObjectCache");
+        }
+
+    PyObject* resolutions =
+        mFreeVariableResolver.resolveFreeVariableMemberAccessChains(
+            chainsWithPositions,
+            boundVariables,
+            pyConvertedObjectCache);
+    if (resolutions == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error resolving free variables");
+        }
+
+    Py_DECREF(pyConvertedObjectCache);
+    Py_DECREF(boundVariables);
+    Py_DECREF(chainsWithPositions);
+
+    std::map<FreeVariableMemberAccessChain, int64_t> processedResolutions =
+        _processFreeVariableMemberAccessChainResolutions(resolutions);
+
+    Py_DECREF(resolutions);
+
+    PyObject* filename = PyObject_GetAttrString(pyObject, "sourceFileName");
+    if (filename == NULL) {
+        PyErr_Print();
+        throw std::logic_error(
+            "error getting sourceFileName attr in _registerWithBlock");
+        }
+    if (not PyString_Check(filename)) {
+        throw std::logic_error("expected sourceFileName attr to be a string");
+        }
+
+    int64_t sourceFileId = walkFileDescription(
+        FileDescription::cachedFromArgs(
+            PyObjectUtils::std_string(filename),
+            _fileText(filename)
+            )
+        );
+
+    Py_DECREF(filename);
+
+    mObjectRegistry.defineWithBlock(
+        objectId,
+        processedResolutions,
+        sourceFileId,
+        lineno);
+    }
+
+
+void PyObjectWalker::_augmentChainsWithBoundValuesInScope(
+        PyObject* pyObject,
+        PyObject* withBlockFun,
+        PyObject* boundVariables,
+        PyObject* chainsWithPositions) const
+    {
+    if (not PySet_Check(chainsWithPositions)) {
+        throw std::logic_error("expected chainsWithPositions to be a set");
+        }
+    
+    PyObject* boundValuesInScopeWithPositions =
+        PyAstFreeVariableAnalyses::collectBoundValuesInScope(withBlockFun, true);
+    if (boundValuesInScopeWithPositions == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error calling collectBoundValuesInScope");
+        }
+
+    PyObject* unboundLocals = PyObject_GetAttrString(pyObject, "unboundLocals");
+    if (unboundLocals == NULL) {
+        Py_DECREF(boundValuesInScopeWithPositions);
+        throw std::logic_error("couldn't get unboundLocals attr");
+        }
+
+    PyObject* iterator = PyObject_GetIter(boundValuesInScopeWithPositions);
+    if (iterator == NULL) {
+        PyErr_Print();
+        throw std::logic_error("error calling iter");
+        }    
+    PyObject* item = NULL;
+    while((item = PyIter_Next(iterator)) != NULL) {
+        if (!PyTuple_Check(item)) {
+            throw std::logic_error("expected items to be tuples");
+            }
+        if (PyTuple_GET_SIZE(item) != 2) {
+            throw std::logic_error("expected items to be length-two tuples");
+            }
+
+        PyObject* val = PyTuple_GET_ITEM(item, 0);
+        PyObject* pos = PyTuple_GET_ITEM(item, 1);
+
+        if (not PyObjectUtils::in(unboundLocals, val) and 
+                PyObjectUtils::in(boundVariables, val))
+            {
+            PyObject* varWithPosition = 
+                PyAstFreeVariableAnalyses::varWithPosition(val, pos);
+            if (varWithPosition == NULL) {
+                throw std::logic_error("couldn't get VarWithPosition");
+                }
+            if (PySet_Add(chainsWithPositions, varWithPosition) != 0) {
+                throw std::logic_error("error adding to a set");
+                }
+            }
+        }
+
+    Py_XDECREF(item);
+    Py_DECREF(iterator);
+    Py_DECREF(unboundLocals);
+    Py_DECREF(boundValuesInScopeWithPositions);
     }
 
 
@@ -952,6 +1159,136 @@ PyObjectWalker::_getDataMemberNames(PyObject* pyObject, PyObject* classObject) c
     else {
         return PyAstUtil::collectDataMembersSetInInit(classObject);
         }
+    }
+
+
+PyObject* PyObjectWalker::_withBlockFun(PyObject* withBlock, int64_t lineno) const
+    {
+    PyObject* sourceText = PyObject_GetAttrString(withBlock, "sourceText");
+    if (sourceText == NULL) {
+        return NULL;
+        }
+
+    PyObject* sourceTree = PyAstUtil::pyAstFromText(sourceText);
+    if (sourceTree == NULL) {
+        Py_DECREF(sourceText);
+        return NULL;
+        }
+
+    PyObject* withBlockAst = PyAstUtil::withBlockAtLineNumber(sourceTree, lineno);
+    if (withBlockAst == NULL) {
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);
+        return NULL;
+        }
+
+    PyObject* body = PyObject_GetAttrString(withBlockAst, "body");
+    if (body == NULL) {
+        Py_DECREF(withBlockAst);
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);
+        return NULL;
+        }
+
+    PyObject* argsTuple = Py_BuildValue("()");
+    if (argsTuple == NULL) {
+        Py_DECREF(body);
+        Py_DECREF(withBlockAst);
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);        
+        return NULL;
+        }
+
+    PyObject* ast_args = _defaultAstArgs();
+    if (ast_args == NULL) {
+        Py_DECREF(argsTuple);
+        Py_DECREF(body);
+        Py_DECREF(withBlockAst);
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);        
+        return NULL;
+        }
+    
+    PyObject* decorator_list = PyList_New(0);
+    if (decorator_list == NULL) {
+        Py_DECREF(ast_args);
+        Py_DECREF(argsTuple);
+        Py_DECREF(body);
+        Py_DECREF(withBlockAst);
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);        
+        return NULL;
+        }
+
+    PyObject* kwds = Py_BuildValue("{s:s, s:O, s:O, s:O, s:i, s:i}",
+        "name", "",
+        "args", ast_args,
+        "body", body,
+        "decorator_list", decorator_list,
+        "lineno", lineno,
+        "col_offset", 0);
+    if (kwds == NULL) {
+        Py_DECREF(decorator_list);
+        Py_DECREF(ast_args);
+        Py_DECREF(argsTuple);
+        Py_DECREF(body);
+        Py_DECREF(withBlockAst);
+        Py_DECREF(sourceTree);
+        Py_DECREF(sourceText);
+        return NULL;
+        }
+        
+    PyObject* res = Ast::FunctionDef(argsTuple, kwds);
+
+    Py_DECREF(kwds);
+    Py_DECREF(decorator_list);
+    Py_DECREF(kwds);
+    Py_DECREF(ast_args);
+    Py_DECREF(argsTuple);
+    Py_DECREF(body);
+    Py_DECREF(withBlockAst);
+    Py_DECREF(sourceTree);
+    Py_DECREF(sourceText);
+
+    return res;
+    }
+
+
+PyObject* PyObjectWalker::_defaultAstArgs() const
+    {
+    PyObject* args = Py_BuildValue("()");
+    if (args == NULL) {
+        return NULL;
+        }
+
+    PyObject* emptyList = PyList_New(0);
+    if (emptyList == NULL) {
+        Py_DECREF(args);
+        return NULL;
+        }
+
+    PyObject* kwargs = Py_BuildValue("{sOsOssss}",
+        "args", emptyList,
+        "defaults", emptyList,
+        "kwarg", NULL,
+        "vararg", NULL);
+    if (kwargs == NULL) {
+        Py_DECREF(emptyList);
+        Py_DECREF(args);
+        return NULL;
+        }
+    
+    PyObject* res = Ast::arguments(args, kwargs);
+
+    Py_DECREF(kwargs);
+    Py_DECREF(emptyList);
+    Py_DECREF(args);
+
+    if (res == NULL) {
+        return NULL;
+        }
+
+    return res;
     }
 
 

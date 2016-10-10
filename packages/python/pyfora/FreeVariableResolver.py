@@ -49,6 +49,45 @@ class FreeVariableResolver(object):
 
         return resolutions
 
+    def resolveFreeVariableMemberAccessChains(self,
+                                              freeVariableMemberAccessChainsWithPositions,
+                                              boundVariables,
+                                              convertedObjectCache):
+        """ Return a dictionary mapping subchains to resolved ids."""
+        resolutions = dict()
+
+        for chainWithPosition in freeVariableMemberAccessChainsWithPositions:
+            subchain, resolution, position = self.resolveChainByDict(
+                chainWithPosition, boundVariables)
+
+            if id(resolution) in convertedObjectCache:
+                resolution = convertedObjectCache[id(resolution)][1]
+
+            resolutions[subchain] = (resolution, position)
+
+        return resolutions
+
+    def resolveChainByDict(self, chainWithPosition, boundVariables):
+        """
+        `_resolveChainByDict`: look up a free variable member access chain, `chain`,
+        in a dictionary of resolutions, `boundVariables`, or in `__builtin__` and
+        return a tuple (subchain, resolution, location).
+        """
+        freeVariable = chainWithPosition.var[0]
+
+        if freeVariable in boundVariables:
+            rootValue = boundVariables[freeVariable]
+
+        elif hasattr(__builtin__, freeVariable):
+            rootValue = getattr(__builtin__, freeVariable)
+
+        else:
+            raise UnresolvedFreeVariableException(chainWithPosition, None)
+
+        return self.computeSubchainAndTerminalValueAlongModules(
+            rootValue, chainWithPosition)
+
+
     def _resolveChainInPyObject(self,
                                 chainWithPosition,
                                 pyObject,

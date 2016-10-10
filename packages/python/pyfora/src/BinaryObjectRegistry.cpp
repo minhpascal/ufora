@@ -247,6 +247,21 @@ void BinaryObjectRegistry::defineInstanceMethod(int64_t objectId,
     }
 
 
+void BinaryObjectRegistry::defineWithBlock(
+        int64_t objectId,
+        const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId,
+        int64_t sourceFileId,
+        int64_t lineNumber
+        )
+    {
+    mStringBuilder.addInt64(objectId);
+    mStringBuilder.addByte(CODE_WITH_BLOCK);
+    _writeFreeVariableResolutions(chainToId);
+    mStringBuilder.addInt64(sourceFileId);
+    mStringBuilder.addInt32(lineNumber);
+    }
+
+
 void BinaryObjectRegistry::definePyAbortException(int64_t objectId,
                                                   const std::string& typeName,
                                                   int64_t argsId)

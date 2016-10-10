@@ -13,30 +13,25 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ****************************************************************************/
-#pragma once
-
 #include <Python.h>
 
-#include <string>
 
-
-class PyObjectUtils {
+class Ast {
 public:
-    static std::string repr_string(PyObject* obj);
-    static std::string str_string(PyObject* obj);
-
-    // string should be a PyString. no checking is done.
-    static std::string std_string(PyObject* string);
-
-    static std::string format_exc();
-
-    static long builtin_id(PyObject*);
-
-    static bool in(PyObject* container, PyObject* value);
+    static PyObject* FunctionDef(PyObject* args, PyObject* kw);
+    static PyObject* arguments(PyObject* args, PyObject* kw);
 
 private:
-    // no checking is done on pyList arg -- it must be a non-null
-    // PyList*
-    static bool _in_list(PyObject* pyList, PyObject* value);
+    static Ast& _getInstance() {
+        static Ast singleton;
+        return singleton;
+        }
 
-};
+    Ast();
+
+    // don't define to provide singleton pattern
+    Ast(const Ast&);
+    void operator=(const Ast&);
+
+    PyObject* mAstModule;
+    };

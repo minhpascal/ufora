@@ -229,15 +229,35 @@ PyObject* PyAstUtil::pyAstFromText(const std::string& fileText)
         throw std::logic_error("couldn't create a PyString out of a C++ string");
         }
 
-    PyObject* res = PyObject_CallFunctionObjArgs(
-        _getInstance().mPyAstFromTextFun,
-        pyString,
-        NULL
-        );
+    PyObject* res = _pyAstFromText(pyString);
 
     Py_DECREF(pyString);
 
     return res;
+    }
+
+
+PyObject* PyAstUtil::pyAstFromText(PyObject* pyString)
+    {
+    if (not PyString_Check(pyString)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "argument should be a string"
+            );
+        return NULL;
+        }
+    
+    return _pyAstFromText(pyString);
+    }
+
+
+PyObject* PyAstUtil::_pyAstFromText(PyObject* pyString)
+    {
+    return PyObject_CallFunctionObjArgs(
+        _getInstance().mPyAstFromTextFun,
+        pyString,
+        NULL
+        );
     }
 
 
@@ -297,6 +317,34 @@ PyAstUtil::classDefAtLineNumber(PyObject* pyObject,
     }
 
 
+PyObject* PyAstUtil::withBlockAtLineNumber(PyObject* pyObject, long sourceLine)
+    {
+    PyObject* pySourceLine = PyInt_FromLong(sourceLine);
+    if (pySourceLine == NULL) {
+        return NULL;
+        }
+
+    PyObject* withBlockAtLineNumberFun = PyObject_GetAttrString(
+        _getInstance().mPyAstUtilModule,
+        "withBlockAtLineNumber");
+    if (withBlockAtLineNumberFun == NULL) {
+        Py_DECREF(pySourceLine);
+        return NULL;
+        }
+    
+    PyObject* tr = PyObject_CallFunctionObjArgs(
+        withBlockAtLineNumberFun,
+        pyObject,
+        pySourceLine,
+        NULL);
+    
+    Py_DECREF(withBlockAtLineNumberFun);
+    Py_DECREF(pySourceLine);
+
+    return tr;
+    }
+
+
 PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
     {
     PyObject* collectDataMembersSetInInitFun = PyObject_GetAttrString(
@@ -314,4 +362,66 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
     Py_DECREF(collectDataMembersSetInInitFun);
 
     return res;
+    }
+
+
+bool PyAstUtil::hasReturnInOuterScope(PyObject* pyAst)
+    {
+    PyObject* hasReturnInOuterScopeFun = PyObject_GetAttrString(
+        _getInstance().mPyAstUtilModule,
+        "hasReturnInOuterScope");
+    if (hasReturnInOuterScopeFun == NULL) {
+        throw std::logic_error(
+            "error getting hasReturnInOuterScope attr on PyAstUtil module");
+        }
+
+    PyObject* pyBool = PyObject_CallFunctionObjArgs(
+        hasReturnInOuterScopeFun,
+        pyAst,
+        NULL);
+    Py_DECREF(hasReturnInOuterScopeFun);
+    if (pyBool == NULL) {
+        throw std::logic_error("error calling hasReturnInOuterScope");
+        }
+    if (not PyBool_Check(pyBool)) {
+        Py_DECREF(pyBool);
+        throw std::logic_error("expected a bool returned from hasReturnInOuterScope");
+        }
+
+    bool tr = (pyBool == Py_True);
+
+    Py_DECREF(pyBool);
+
+    return tr;
+    }
+
+
+bool PyAstUtil::hasYieldInOuterScope(PyObject* pyAst)
+    {
+    PyObject* hasYieldInOuterScopeFun = PyObject_GetAttrString(
+        _getInstance().mPyAstUtilModule,
+        "hasYieldInOuterScope");
+    if (hasYieldInOuterScopeFun == NULL) {
+        throw std::logic_error(
+            "error getting hasYieldInOuterScope attr on PyAstUtil module");
+        }
+
+    PyObject* pyBool = PyObject_CallFunctionObjArgs(
+        hasYieldInOuterScopeFun,
+        pyAst,
+        NULL);
+    Py_DECREF(hasYieldInOuterScopeFun);
+    if (pyBool == NULL) {
+        throw std::logic_error("error calling hasYieldInOuterScope");
+        }
+    if (not PyBool_Check(pyBool)) {
+        Py_DECREF(pyBool);
+        throw std::logic_error("expected a bool returned from hasYieldInOuterScope");
+        }
+
+    bool tr = (pyBool == Py_True);
+
+    Py_DECREF(pyBool);
+
+    return tr;    
     }

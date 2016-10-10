@@ -33,9 +33,14 @@ public:
       error string.
      */
     static PyObject* pyAstFromText(const std::string& fileText);
+    static PyObject* pyAstFromText(PyObject* pyString);
     static PyObject* functionDefOrLambdaAtLineNumber(PyObject* obj, long sourceLine);
     static PyObject* classDefAtLineNumber(PyObject* obj, long sourceLine);
+    static PyObject* withBlockAtLineNumber(PyObject* obj, long sourceLine);
     static PyObject* collectDataMembersSetInInit(PyObject* pyObject);
+
+    static bool hasReturnInOuterScope(PyObject* pyAst);
+    static bool hasYieldInOuterScope(PyObject* pyAst);
 
 private:
     // singleton instance
@@ -56,6 +61,10 @@ private:
     void _initPyAstFromTextFun();
     void _initFunctionDefOrLambdaAtLineNumberFun();
     void _initClassDefAtLineNumberFun();
+
+    // no checking is done on the argument here.
+    // it MUST be a non-null PyString
+    static PyObject* _pyAstFromText(PyObject* pyString);
 
     PyObject* mPyAstUtilModule;
     PyObject* mGetSourceFilenameAndTextFun;

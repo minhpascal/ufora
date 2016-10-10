@@ -52,6 +52,7 @@ private:
     void _registerBuiltinExceptionInstance(int64_t objectId, PyObject* pyException);
     void _registerTypeOrBuiltinFunctionNamedSingleton(int64_t objectId,
                                                       PyObject* pyObject);
+    void _registerWithBlock(int64_t objectId, PyObject* pyObject);
     void _registerTuple(int64_t objectId, PyObject* pyTuple);
     void _registerList(int64_t objectId, PyObject* pyList);
     void _registerListOfPrimitives(int64_t objectId, PyObject* pyList);
@@ -85,8 +86,15 @@ private:
         ) const;
 
     PyObject* _getPyConvertedObjectCache() const;
-
     PyObject* _getDataMemberNames(PyObject* classInstance, PyObject* classObject) const;
+    PyObject* _withBlockFun(PyObject* withBlockAst, int64_t lineno) const;
+    PyObject* _defaultAstArgs() const;
+
+    void _augmentChainsWithBoundValuesInScope(
+        PyObject* pyObject,
+        PyObject* withBlockFun,
+        PyObject* boundVariables,
+        PyObject* chainsWithPositions) const;
 
     // checks: pyObject.__class__ in NamedSingletons.pythonSingletonToName
     // (expects that pyObject has a __class__ attr
@@ -100,7 +108,8 @@ private:
 
     FreeVariableMemberAccessChain _toChain(PyObject*) const;
 
-    std::string _fileText(const std::string& filename);
+    std::string _fileText(const std::string& filename) const;
+    std::string _fileText(PyObject* filename) const;
 
     // init functions called from ctor
     void _initPyforaModule();
@@ -108,6 +117,7 @@ private:
     void _initRemotePythonObjectClass();
     void _initPackedHomogenousDataClass();
     void _initFutureClass();
+    void _initWithBlockClass();
 
     static bool _isPrimitive(PyObject* pyObject);
     static bool _allPrimitives(PyObject* pyList);
@@ -120,6 +130,7 @@ private:
     PyObject* mExcludePredicateFun;
     PyObject* mExcludeList;
     PyObject* mTerminalValueFilter;
+    PyObject* mWithBlockClass;
     std::map<long, PyObject*> mConvertedObjectCache;
     std::map<PyObject*, int64_t> mPyObjectToObjectId;
     std::map<PyObject*, std::string> mPythonSingletonToName;

@@ -15,16 +15,32 @@
 ****************************************************************************/
 #include "PyAstFreeVariableAnalyses.hpp"
 
+#include "PyObjectUtils.hpp"
+
+#include <iostream>
 #include <exception>
 #include <stdexcept>
 
 
 PyAstFreeVariableAnalyses::PyAstFreeVariableAnalyses()
     : mPyAstFreeVariableAnalysesModule(NULL),
-      mGetFreeVariableMemberAccessChainsFun(NULL)
+      mGetFreeVariableMemberAccessChainsFun(NULL),
+      mVarWithPosition(NULL)
     {
     _initPyAstFreeVariableAnalysesModule();
     _initGetFreeVariableMemberAccessChainsFun();
+    _initVarWithPosition();
+    }
+
+
+void PyAstFreeVariableAnalyses::_initVarWithPosition()
+    {
+    mVarWithPosition = PyObject_GetAttrString(mPyAstFreeVariableAnalysesModule,
+                                              "VarWithPosition");
+    if (mVarWithPosition == NULL) {
+        throw std::logic_error("error getting VarWithPosition attr "
+                               "on PyAstFreeVariableAnalyses module");
+        }
     }
 
 
@@ -78,18 +94,16 @@ PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
     {
     PyObject* pyIsClassContext = PyBool_FromLong(isClassContext);
     if (pyIsClassContext == NULL) {
-        PyErr_Print();
-        throw std::logic_error("couldn't create a PyBool from a C++ bool");
+        return NULL;
         }
 
     PyObject* pyGetPositions = PyBool_FromLong(getPositions);
     if (pyGetPositions == NULL) {
         Py_DECREF(pyIsClassContext);
-        PyErr_Print();
-        throw std::logic_error("couldn't create a PyBool from a C++ bool");
+        return NULL;
         }
 
-    PyObject* kwds = Py_BuildValue("{sOsOsOsO}",
+    PyObject* kwds = Py_BuildValue("{s:O, s:O, s:O, s:O}",
         "pyAstNode",
         pyAst,
         "isClassContext",
@@ -100,16 +114,17 @@ PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
         exclude_predicate
         );
     if (kwds == NULL) {
-        PyErr_Print();
         Py_DECREF(pyGetPositions);
         Py_DECREF(pyIsClassContext);
-        throw std::logic_error("couldn't create a dict");
+        return NULL;
         }
 
     PyObject* argsTuple = Py_BuildValue("()");
     if (argsTuple == NULL) {
-        PyErr_Print();
-        throw std::logic_error("couldn't build an empty tuple");
+        Py_DECREF(kwds);
+        Py_DECREF(pyGetPositions);
+        Py_DECREF(pyIsClassContext);
+        return NULL;
         }
 
     PyObject* res = PyObject_Call(
@@ -117,8 +132,11 @@ PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
         argsTuple,
         kwds);
     if (res == NULL) {
-        PyErr_Print();
-        throw std::logic_error("error calling getFreeMemberAccessChains");
+        Py_DECREF(argsTuple);
+        Py_DECREF(kwds);
+        Py_DECREF(pyGetPositions);
+        Py_DECREF(pyIsClassContext);
+        return NULL;
         }
 
     Py_DECREF(argsTuple);
@@ -127,4 +145,55 @@ PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
     Py_DECREF(pyIsClassContext);
     
     return res;
+    }
+
+
+PyObject* PyAstFreeVariableAnalyses::collectBoundValuesInScope(
+        const PyObject* pyAst,
+        bool getPositions
+        )
+    {
+    PyObject* collectBoundValuesInScopeFun = PyObject_GetAttrString(
+        _getInstance().mPyAstFreeVariableAnalysesModule,
+        "collectBoundValuesInScope"
+        );
+    if (collectBoundValuesInScopeFun == NULL) {
+        return NULL;
+        }
+
+    // don't need to decref this creature since we're using it as a temporary
+    PyObject* pyBool = (getPositions ? Py_True : Py_False);
+    Py_INCREF(pyBool);
+
+    PyObject* res = PyObject_CallFunctionObjArgs(
+        collectBoundValuesInScopeFun,
+        pyAst,
+        pyBool,
+        NULL
+        );
+    
+    Py_DECREF(pyBool);
+    Py_DECREF(collectBoundValuesInScopeFun);
+
+    return res;
+    }
+
+
+PyObject* PyAstFreeVariableAnalyses::varWithPosition(const PyObject* var,
+                                                     const PyObject* pos)
+    {
+    PyObject* varTup = Py_BuildValue("(O)", var);
+    if (varTup == NULL) {
+        return NULL;
+        }
+
+    PyObject* tr = PyObject_CallFunctionObjArgs(
+        _getInstance().mVarWithPosition,
+        varTup,
+        pos,
+        NULL);
+
+    Py_DECREF(varTup);
+
+    return tr;
     }

@@ -18,9 +18,7 @@
 #include <stdexcept>
 
 
-namespace PyObjectUtils {
-    
-std::string repr_string(PyObject* obj)
+std::string PyObjectUtils::repr_string(PyObject* obj)
     {
     PyObject* obj_repr = PyObject_Repr(obj);
     if (obj_repr == NULL) {
@@ -42,7 +40,7 @@ std::string repr_string(PyObject* obj)
     }
 
 
-std::string str_string(PyObject* obj)
+std::string PyObjectUtils::str_string(PyObject* obj)
     {
     PyObject* obj_str = PyObject_Str(obj);
     if (obj_str == NULL) {
@@ -64,7 +62,7 @@ std::string str_string(PyObject* obj)
     }
 
 
-std::string std_string(PyObject* string)
+std::string PyObjectUtils::std_string(PyObject* string)
     {
     char* str = PyString_AS_STRING(string);
     if (str == NULL) {
@@ -78,7 +76,7 @@ std::string std_string(PyObject* string)
     }
 
 
-std::string format_exc()
+std::string PyObjectUtils::format_exc()
     {
     PyObject* traceback_module = PyImport_ImportModule("traceback");
     if (traceback_module == NULL) {
@@ -114,7 +112,7 @@ std::string format_exc()
     }
 
 
-long builtin_id(PyObject* pyObject)
+long PyObjectUtils::builtin_id(PyObject* pyObject)
     {
     PyObject* pyObject_builtin_id = PyLong_FromVoidPtr(pyObject);
     if (pyObject_builtin_id == NULL) {
@@ -134,4 +132,34 @@ long builtin_id(PyObject* pyObject)
     return tr;
     }
 
-}
+
+bool PyObjectUtils::in(PyObject* container, PyObject* value)
+    {
+    if (PySet_Check(container)) {
+        return PySet_Contains(container, value);
+        }
+    else if (PyDict_Check(container)) {
+        return PyDict_Contains(container, value);
+        }
+    else if (PyList_Check(container)) {
+        return _in_list(container, value);
+        }
+    else {
+        throw std::logic_error("we haven't implemented all alternatives here. "
+                               "should just call back into python."
+            );
+        }
+    }
+
+
+bool PyObjectUtils::_in_list(PyObject* pyList, PyObject* value)
+    {
+    for (Py_ssize_t ix = 0; ix < PyList_GET_SIZE(pyList); ++ix) {
+        PyObject* item = PyList_GET_ITEM(pyList, ix);
+        if (PyObject_Compare(value, item)) {
+            return true;
+            }
+        }
+
+    return false;
+    }

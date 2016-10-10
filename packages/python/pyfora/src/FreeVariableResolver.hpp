@@ -37,6 +37,11 @@ public:
         PyObject* freeMemberAccessChainsWithPositions,
         PyObject* convertedObjectCache) const;
 
+    PyObject* resolveFreeVariableMemberAccessChains(
+        PyObject* freeMemberAccessChainsWithPositions,
+        PyObject* boundVariables,
+        PyObject* convertedObjectCache) const;
+
 private:
     PyObject* mPureFreeVariableResolver;
     PyObject* exclude_list;

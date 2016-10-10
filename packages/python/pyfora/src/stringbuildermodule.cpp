@@ -173,7 +173,7 @@ PyStringBuilder_addInt64s(PyStringBuilder* self, PyObject* args)
 
         ints.push_back(PyInt_AsLong(item));
 
-        Py_DECREF(item);
+        Py_XDECREF(item);
         }
 
     self->nativeStringBuilder->addInt64s(ints);

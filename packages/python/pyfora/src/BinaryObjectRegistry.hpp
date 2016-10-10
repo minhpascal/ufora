@@ -121,7 +121,11 @@ public:
     void defineInstanceMethod(int64_t objectId,
                               int64_t instanceId,
                               const std::string& methodName);
-    // TODO defineWithBlock
+    void defineWithBlock(
+        int64_t objectId,
+        const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId,
+        int64_t sourceFileId,
+        int64_t lineNumber);
     void definePyAbortException(int64_t objectId,
                                 const std::string& typeName,
                                 int64_t argsId);

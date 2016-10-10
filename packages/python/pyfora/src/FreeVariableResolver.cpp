@@ -107,13 +107,32 @@ PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChainsInAst(
     
     Py_DECREF(resolveFreeVariableMemberAccessChainsInAstFun);
 
-    if (res == NULL) {
-        PyErr_Print();
-        throw std::logic_error("error calling "
-            "resolveFreeVariableMemberAccessChainsInAst");
-        }
-
     return res;
     }
 
 
+PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChains(
+        PyObject* freeMemberAccessChainsWithPositions,
+        PyObject* boundVariables,
+        PyObject* convertedObjectCache) const
+    {
+    PyObject* resolveFreeVariableMemberAccessChainsFun = 
+        PyObject_GetAttrString(
+            mPureFreeVariableResolver,
+            "resolveFreeVariableMemberAccessChains"
+            );
+    if (resolveFreeVariableMemberAccessChainsFun == NULL) {
+        return NULL;
+        }
+
+    PyObject* res = PyObject_CallFunctionObjArgs(
+        resolveFreeVariableMemberAccessChainsFun,
+        freeMemberAccessChainsWithPositions,
+        boundVariables,
+        convertedObjectCache,
+        NULL);
+
+    Py_DECREF(resolveFreeVariableMemberAccessChainsFun);
+
+    return res;
+    }

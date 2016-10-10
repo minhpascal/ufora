@@ -26,6 +26,13 @@ public:
         bool getPositions,
         PyObject* exclude_predicate);
 
+    // should return a PySet
+    static PyObject* collectBoundValuesInScope(
+        const PyObject* pyAst,
+        bool getPositions=false);
+
+    static PyObject* varWithPosition(const PyObject* var, const PyObject* pos);
+
 private:
     // singleton instance
     static PyAstFreeVariableAnalyses& _getInstance() {
@@ -41,7 +48,9 @@ private:
 
     void _initPyAstFreeVariableAnalysesModule();
     void _initGetFreeVariableMemberAccessChainsFun();
+    void _initVarWithPosition();
 
     PyObject* mPyAstFreeVariableAnalysesModule;
     PyObject* mGetFreeVariableMemberAccessChainsFun;
+    PyObject* mVarWithPosition;
     };
