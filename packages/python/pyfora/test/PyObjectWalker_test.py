@@ -248,6 +248,11 @@ class PyObjectWalkerTest(unittest.TestCase):
     
         self.assertWalkersEquivalent(a.f)
 
+    def test_PyObjectWalker_exceptions_1(self):
+        e = TypeError("omg")
+
+        self.assertWalkersEquivalent(e)
+
 
 if __name__ == "__main__":
     unittest.main()
