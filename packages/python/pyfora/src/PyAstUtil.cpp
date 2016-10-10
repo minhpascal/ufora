@@ -139,7 +139,8 @@ PyAstUtil::sourceFilenameAndText(PyObject* pyObject)
     if (res == NULL) {
         PyErr_Print();
         throw std::logic_error(
-            "an error occured calling getSourceFilenameAndText"
+            "an error occurred calling getSourceFilenameAndText. "
+            "pyObject = " + PyObjectUtils::str_string(pyObject)
             );
         }
     if (not PyTuple_Check(res)) {
@@ -184,7 +185,7 @@ long PyAstUtil::startingSourceLine(PyObject* pyObject)
     if (res == NULL) {
         PyErr_Print();
         throw std::logic_error(
-            "an error occured calling getSourceLines"
+            "an error occurred calling getSourceLines"
             );
         }
 

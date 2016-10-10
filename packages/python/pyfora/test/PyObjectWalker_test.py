@@ -239,6 +239,16 @@ class PyObjectWalkerTest(unittest.TestCase):
 
         self.assertWalkersEquivalent(a)
 
+    def test_PyObjectWalker_instancemethod_1(self):
+        class A_34293(object):
+            def f(self, x):
+                return x + 1
+
+        a = A_34293()
+    
+        self.assertWalkersEquivalent(a.f)
+
+
 if __name__ == "__main__":
     unittest.main()
 

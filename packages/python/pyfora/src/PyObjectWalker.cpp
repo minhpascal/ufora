@@ -346,7 +346,6 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
        RemotePythonObject.RemotePythonObject -- uses ComputedValue. going away?
        PyforaWithBlock.PyforaWithBlock
        _Unconvertible
-       instancemethod
     */
     if (PyObject_IsInstance(pyObject, mPackedHomogenousDataClass))
         {
@@ -389,13 +388,13 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
         {
         _registerClass(objectId, pyObject);
         }
-    else if (PyforaInspect::isclassinstance(pyObject))
-        {
-        _registerClassInstance(objectId, pyObject);
-        }
     else if (PyMethod_Check(pyObject))
         {
         _registerInstanceMethod(objectId, pyObject);
+        }
+    else if (PyforaInspect::isclassinstance(pyObject))
+        {
+        _registerClassInstance(objectId, pyObject);
         }
     else {
         throw std::logic_error("PyObjectWalker couldn't handle a PyObject: " +
