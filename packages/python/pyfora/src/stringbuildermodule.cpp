@@ -289,10 +289,10 @@ static PyMemberDef PyStringBuilder_members[] = {
 
 
 static PyGetSetDef PyStringBuilder_getsetters[] = {
-    {"bytecount",
+    {const_cast<char*>("bytecount"),
     (getter)PyStringBuilder_getbytecount,
     0,
-    "return the accumulated byte count of the buffer",
+     const_cast<char*>("return the accumulated byte count of the buffer"),
      NULL},
     {NULL} /* Sentinel */
     };

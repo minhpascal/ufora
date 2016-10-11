@@ -25,7 +25,7 @@ public:
     static bool isfunction(PyObject*);
     static bool ismodule(PyObject*);
 
-    static PyObject* getlines(PyObject*);
+    static PyObject* getlines(const PyObject*);
 
 private:
     static PyforaInspect& _getInstance() {

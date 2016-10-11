@@ -82,10 +82,10 @@ void FreeVariableResolver::_initPureFreeVariableResolver()
 
 
 PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChainsInAst(
-        PyObject* pyObject,
-        PyObject* pyAst,
-        PyObject* freeMemberAccessChainsWithPositions,
-        PyObject* convertedObjectCache) const
+        const PyObject* pyObject,
+        const PyObject* pyAst,
+        const PyObject* freeMemberAccessChainsWithPositions,
+        const PyObject* convertedObjectCache) const
     {
     PyObject* resolveFreeVariableMemberAccessChainsInAstFun =
         PyObject_GetAttrString(mPureFreeVariableResolver,
@@ -112,9 +112,9 @@ PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChainsInAst(
 
 
 PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChains(
-        PyObject* freeMemberAccessChainsWithPositions,
-        PyObject* boundVariables,
-        PyObject* convertedObjectCache) const
+        const PyObject* freeMemberAccessChainsWithPositions,
+        const PyObject* boundVariables,
+        const PyObject* convertedObjectCache) const
     {
     PyObject* resolveFreeVariableMemberAccessChainsFun = 
         PyObject_GetAttrString(

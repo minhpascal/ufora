@@ -16,10 +16,7 @@
 #include "PyBinaryObjectRegistry.hpp"
 #include <structmember.h>
 
-
 #include "BinaryObjectRegistry.hpp"
-
-
 
 
 /*********************************

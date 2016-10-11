@@ -62,7 +62,7 @@ std::string PyObjectUtils::str_string(PyObject* obj)
     }
 
 
-std::string PyObjectUtils::std_string(PyObject* string)
+std::string PyObjectUtils::std_string(const PyObject* string)
     {
     char* str = PyString_AS_STRING(string);
     if (str == NULL) {

@@ -21,10 +21,10 @@
 class PyAstFreeVariableAnalyses {
 public:
     static PyObject*  getFreeMemberAccessChainsWithPositions(
-        PyObject* pyAst,
+        const PyObject* pyAst,
         bool isClassContext,
         bool getPositions,
-        PyObject* exclude_predicate);
+        const PyObject* exclude_predicate);
 
     // should return a PySet
     static PyObject* collectBoundValuesInScope(

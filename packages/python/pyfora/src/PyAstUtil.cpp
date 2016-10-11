@@ -129,7 +129,7 @@ void PyAstUtil::_initPyAstUtilModule()
 
 
 std::pair<std::string, std::string>
-PyAstUtil::sourceFilenameAndText(PyObject* pyObject)
+PyAstUtil::sourceFilenameAndText(const PyObject* pyObject)
     {
     PyObject* res = PyObject_CallFunctionObjArgs(
         _getInstance().mGetSourceFilenameAndTextFun,
@@ -140,7 +140,6 @@ PyAstUtil::sourceFilenameAndText(PyObject* pyObject)
         PyErr_Print();
         throw std::logic_error(
             "an error occurred calling getSourceFilenameAndText. "
-            "pyObject = " + PyObjectUtils::str_string(pyObject)
             );
         }
     if (not PyTuple_Check(res)) {
@@ -175,7 +174,7 @@ PyAstUtil::sourceFilenameAndText(PyObject* pyObject)
     }
 
 
-long PyAstUtil::startingSourceLine(PyObject* pyObject)
+long PyAstUtil::startingSourceLine(const PyObject* pyObject)
     {
     PyObject* res = PyObject_CallFunctionObjArgs(
         _getInstance().mGetSourceLinesFun,
@@ -237,7 +236,7 @@ PyObject* PyAstUtil::pyAstFromText(const std::string& fileText)
     }
 
 
-PyObject* PyAstUtil::pyAstFromText(PyObject* pyString)
+PyObject* PyAstUtil::pyAstFromText(const PyObject* pyString)
     {
     if (not PyString_Check(pyString)) {
         PyErr_SetString(
@@ -251,7 +250,7 @@ PyObject* PyAstUtil::pyAstFromText(PyObject* pyString)
     }
 
 
-PyObject* PyAstUtil::_pyAstFromText(PyObject* pyString)
+PyObject* PyAstUtil::_pyAstFromText(const PyObject* pyString)
     {
     return PyObject_CallFunctionObjArgs(
         _getInstance().mPyAstFromTextFun,
@@ -262,7 +261,7 @@ PyObject* PyAstUtil::_pyAstFromText(PyObject* pyString)
 
 
 PyObject*
-PyAstUtil::functionDefOrLambdaAtLineNumber(PyObject* pyObject,
+PyAstUtil::functionDefOrLambdaAtLineNumber(const PyObject* pyObject,
                                            long sourceLine)
     {
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
@@ -290,7 +289,7 @@ PyAstUtil::functionDefOrLambdaAtLineNumber(PyObject* pyObject,
 
 
 PyObject* 
-PyAstUtil::classDefAtLineNumber(PyObject* pyObject,
+PyAstUtil::classDefAtLineNumber(const PyObject* pyObject,
                                 long sourceLine)
     {
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
@@ -317,7 +316,7 @@ PyAstUtil::classDefAtLineNumber(PyObject* pyObject,
     }
 
 
-PyObject* PyAstUtil::withBlockAtLineNumber(PyObject* pyObject, long sourceLine)
+PyObject* PyAstUtil::withBlockAtLineNumber(const PyObject* pyObject, long sourceLine)
     {
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
     if (pySourceLine == NULL) {
@@ -365,7 +364,7 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
     }
 
 
-bool PyAstUtil::hasReturnInOuterScope(PyObject* pyAst)
+bool PyAstUtil::hasReturnInOuterScope(const PyObject* pyAst)
     {
     PyObject* hasReturnInOuterScopeFun = PyObject_GetAttrString(
         _getInstance().mPyAstUtilModule,
@@ -396,7 +395,7 @@ bool PyAstUtil::hasReturnInOuterScope(PyObject* pyAst)
     }
 
 
-bool PyAstUtil::hasYieldInOuterScope(PyObject* pyAst)
+bool PyAstUtil::hasYieldInOuterScope(const PyObject* pyAst)
     {
     PyObject* hasYieldInOuterScopeFun = PyObject_GetAttrString(
         _getInstance().mPyAstUtilModule,

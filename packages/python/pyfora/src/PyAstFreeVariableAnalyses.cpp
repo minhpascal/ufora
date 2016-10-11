@@ -87,10 +87,10 @@ void PyAstFreeVariableAnalyses::_initGetFreeVariableMemberAccessChainsFun()
 
 
 PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
-        PyObject* pyAst,
+        const PyObject* pyAst,
         bool isClassContext,
         bool getPositions,
-        PyObject* exclude_predicate)
+        const PyObject* exclude_predicate)
     {
     PyObject* pyIsClassContext = PyBool_FromLong(isClassContext);
     if (pyIsClassContext == NULL) {

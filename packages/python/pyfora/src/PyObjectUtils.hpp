@@ -26,7 +26,7 @@ public:
     static std::string str_string(PyObject* obj);
 
     // string should be a PyString. no checking is done.
-    static std::string std_string(PyObject* string);
+    static std::string std_string(const PyObject* string);
 
     static std::string format_exc();
 

@@ -23,8 +23,8 @@
 
 class PyAstUtil {
 public:
-    static std::pair<std::string, std::string> sourceFilenameAndText(PyObject*);
-    static long startingSourceLine(PyObject*);
+    static std::pair<std::string, std::string> sourceFilenameAndText(const PyObject*);
+    static long startingSourceLine(const PyObject*);
 
     /*
       These Next three functions (wich return PyObject*) return new references
@@ -33,14 +33,15 @@ public:
       error string.
      */
     static PyObject* pyAstFromText(const std::string& fileText);
-    static PyObject* pyAstFromText(PyObject* pyString);
-    static PyObject* functionDefOrLambdaAtLineNumber(PyObject* obj, long sourceLine);
-    static PyObject* classDefAtLineNumber(PyObject* obj, long sourceLine);
-    static PyObject* withBlockAtLineNumber(PyObject* obj, long sourceLine);
+    static PyObject* pyAstFromText(const PyObject* pyString);
+    static PyObject* functionDefOrLambdaAtLineNumber(const PyObject* obj,
+                                                     long sourceLine);
+    static PyObject* classDefAtLineNumber(const PyObject* obj, long sourceLine);
+    static PyObject* withBlockAtLineNumber(const PyObject* obj, long sourceLine);
     static PyObject* collectDataMembersSetInInit(PyObject* pyObject);
 
-    static bool hasReturnInOuterScope(PyObject* pyAst);
-    static bool hasYieldInOuterScope(PyObject* pyAst);
+    static bool hasReturnInOuterScope(const PyObject* pyAst);
+    static bool hasYieldInOuterScope(const PyObject* pyAst);
 
 private:
     // singleton instance
@@ -64,7 +65,7 @@ private:
 
     // no checking is done on the argument here.
     // it MUST be a non-null PyString
-    static PyObject* _pyAstFromText(PyObject* pyString);
+    static PyObject* _pyAstFromText(const PyObject* pyString);
 
     PyObject* mPyAstUtilModule;
     PyObject* mGetSourceFilenameAndTextFun;

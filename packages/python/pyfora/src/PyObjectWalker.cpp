@@ -297,7 +297,8 @@ int64_t PyObjectWalker::walkFileDescription(const FileDescription& fileDescripti
     }
 
 
-bool PyObjectWalker::_canMap(PyObject* pyObject) {
+bool PyObjectWalker::_canMap(PyObject* pyObject) const
+    {
     PyObject* pyString = PyString_FromString("canMap");
 
     if (pyString == NULL) {
@@ -431,7 +432,8 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
     }
 
 
-bool PyObjectWalker::_isPrimitive(PyObject* pyObject) {
+bool PyObjectWalker::_isPrimitive(const PyObject* pyObject)
+    {
     return Py_None == pyObject or
         PyInt_Check(pyObject) or
         PyFloat_Check(pyObject) or
@@ -440,7 +442,7 @@ bool PyObjectWalker::_isPrimitive(PyObject* pyObject) {
     }
 
 
-bool PyObjectWalker::_allPrimitives(PyObject* pyList)
+bool PyObjectWalker::_allPrimitives(const PyObject* pyList)
     {
     // precondition: the argument must be a PyList
     Py_ssize_t size = PyList_GET_SIZE(pyList);
@@ -453,7 +455,7 @@ bool PyObjectWalker::_allPrimitives(PyObject* pyList)
     }
 
 
-bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject)
+bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject) const
     {
     PyObject* __class__attr = PyObject_GetAttrString(pyObject, "__class__");
 
@@ -538,7 +540,7 @@ void PyObjectWalker::_registerBuiltinExceptionInstance(int64_t objectId,
     }
 
 
-bool PyObjectWalker::_isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyObject)
+bool PyObjectWalker::_isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyObject) const
     {
     if (not PyType_Check(pyObject) and not PyCFunction_Check(pyObject)) {
         return false;
@@ -548,7 +550,7 @@ bool PyObjectWalker::_isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyOb
     }
 
 
-std::string PyObjectWalker::_fileText(PyObject* fileNamePyObj) const
+std::string PyObjectWalker::_fileText(const PyObject* fileNamePyObj) const
     {
     PyObject* lines = PyforaInspect::getlines(fileNamePyObj);
     if (lines == NULL) {
@@ -816,7 +818,7 @@ void PyObjectWalker::_registerListOfPrimitives(int64_t objectId, PyObject* pyLis
     }
 
 
-void PyObjectWalker::_registerListGeneric(int64_t objectId ,PyObject* pyList)
+void PyObjectWalker::_registerListGeneric(int64_t objectId, const PyObject* pyList)
     {
     std::vector<int64_t> memberIds;
     Py_ssize_t size = PyList_GET_SIZE(pyList);
@@ -861,7 +863,7 @@ void PyObjectWalker::_registerFunction(int64_t objectId, PyObject* pyObject)
     
 
 ClassOrFunctionInfo
-PyObjectWalker::_classOrFunctionInfo(PyObject* obj, bool isFunction)
+PyObjectWalker::_classOrFunctionInfo(const PyObject* obj, bool isFunction)
     {
     // old PyObjectWalker checks for __inline_fora here
 
@@ -983,8 +985,8 @@ PyObject* PyObjectWalker::_getPyConvertedObjectCache() const
 
 
 PyObject* PyObjectWalker::_computeAndResolveFreeVariableMemberAccessChainsInAst(
-        PyObject* pyObject,
-        PyObject* pyAst
+        const PyObject* pyObject,
+        const PyObject* pyAst
         ) const
     {
     PyObject* chainsWithPositions = _freeMemberAccessChainsWithPositions(pyAst);
@@ -1015,7 +1017,7 @@ PyObject* PyObjectWalker::_computeAndResolveFreeVariableMemberAccessChainsInAst(
 
 
 PyObject* PyObjectWalker::_freeMemberAccessChainsWithPositions(
-        PyObject* pyAst
+        const PyObject* pyAst
         ) const
     {
     return PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
@@ -1328,7 +1330,7 @@ void PyObjectWalker::_registerInstanceMethod(int64_t objectId, PyObject* pyObjec
     }
 
 
-FreeVariableMemberAccessChain PyObjectWalker::_toChain(PyObject* obj) const
+FreeVariableMemberAccessChain PyObjectWalker::_toChain(const PyObject* obj) const
     {
     if (not PyTuple_Check(obj)) {
         throw std::logic_error("expected FVMAC to be tuples ");

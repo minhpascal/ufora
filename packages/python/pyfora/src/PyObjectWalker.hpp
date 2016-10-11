@@ -56,7 +56,7 @@ private:
     void _registerTuple(int64_t objectId, PyObject* pyTuple);
     void _registerList(int64_t objectId, PyObject* pyList);
     void _registerListOfPrimitives(int64_t objectId, PyObject* pyList);
-    void _registerListGeneric(int64_t objectId, PyObject* pyList);
+    void _registerListGeneric(int64_t objectId, const PyObject* pyList);
     void _registerDict(int64_t objectId, PyObject* pyObject);
     void _registerFunction(int64_t objectId, PyObject* pyFunction);
     void _registerClass(int64_t objectId, PyObject* pyClass);
@@ -68,7 +68,7 @@ private:
         mObjectRegistry.definePrimitive(objectId, t);
         }
 
-    bool _canMap(PyObject* pyObject);
+    bool _canMap(PyObject* pyObject) const;
     PyObject* _pureInstanceReplacement(PyObject* pyObject);
 
     /*
@@ -77,12 +77,12 @@ private:
      FVMAC here is a tuple of strings
      */
     PyObject* _computeAndResolveFreeVariableMemberAccessChainsInAst(
-        PyObject* pyObject,
-        PyObject* pyAst
+        const PyObject* pyObject,
+        const PyObject* pyAst
         ) const;
     
     PyObject* _freeMemberAccessChainsWithPositions(
-        PyObject* pyAst
+        const PyObject* pyAst
         ) const;
 
     PyObject* _getPyConvertedObjectCache() const;
@@ -98,18 +98,18 @@ private:
 
     // checks: pyObject.__class__ in NamedSingletons.pythonSingletonToName
     // (expects that pyObject has a __class__ attr
-    bool _classIsNamedSingleton(PyObject* pyObject);
-    bool _isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyObject);
+    bool _classIsNamedSingleton(PyObject* pyObject) const;
+    bool _isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyObject) const;
 
-    ClassOrFunctionInfo _classOrFunctionInfo(PyObject*, bool isFunction);
+    ClassOrFunctionInfo _classOrFunctionInfo(const PyObject*, bool isFunction);
 
     std::map<FreeVariableMemberAccessChain, int64_t>
     _processFreeVariableMemberAccessChainResolutions(PyObject* resolutions);
 
-    FreeVariableMemberAccessChain _toChain(PyObject*) const;
+    FreeVariableMemberAccessChain _toChain(const PyObject*) const;
 
     std::string _fileText(const std::string& filename) const;
-    std::string _fileText(PyObject* filename) const;
+    std::string _fileText(const PyObject* filename) const;
 
     // init functions called from ctor
     void _initPyforaModule();
@@ -119,8 +119,8 @@ private:
     void _initFutureClass();
     void _initWithBlockClass();
 
-    static bool _isPrimitive(PyObject* pyObject);
-    static bool _allPrimitives(PyObject* pyList);
+    static bool _isPrimitive(const PyObject* pyObject);
+    static bool _allPrimitives(const PyObject* pyList);
 
     PyObject* mPurePythonClassMapping;
     PyObject* mPyforaModule;

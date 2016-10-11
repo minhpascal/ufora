@@ -32,20 +32,20 @@ public:
     // returns a new reference to a dict: FVMAC -> (resolution, location)
     // FVMAC here is a tuple of strings
     PyObject* resolveFreeVariableMemberAccessChainsInAst(
-        PyObject* pyObject,
-        PyObject* pyAst,
-        PyObject* freeMemberAccessChainsWithPositions,
-        PyObject* convertedObjectCache) const;
+        const PyObject* pyObject,
+        const PyObject* pyAst,
+        const PyObject* freeMemberAccessChainsWithPositions,
+        const PyObject* convertedObjectCache) const;
 
     PyObject* resolveFreeVariableMemberAccessChains(
-        PyObject* freeMemberAccessChainsWithPositions,
-        PyObject* boundVariables,
-        PyObject* convertedObjectCache) const;
+        const PyObject* freeMemberAccessChainsWithPositions,
+        const PyObject* boundVariables,
+        const PyObject* convertedObjectCache) const;
 
 private:
     PyObject* mPureFreeVariableResolver;
-    PyObject* exclude_list;
-    PyObject* terminal_value_filter;
+    const PyObject* exclude_list;
+    const PyObject* terminal_value_filter;
 
     void _initPureFreeVariableResolver();
 

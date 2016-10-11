@@ -116,7 +116,7 @@ bool PyforaInspect::ismodule(PyObject* pyObject)
     }
 
 
-PyObject* PyforaInspect::getlines(PyObject* obj)
+PyObject* PyforaInspect::getlines(const PyObject* obj)
     {
     return PyObject_CallFunctionObjArgs(_getInstance().mGetLinesFunc, obj, NULL);
     }
