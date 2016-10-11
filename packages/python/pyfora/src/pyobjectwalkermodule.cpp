@@ -142,10 +142,12 @@ static PyMethodDef PyObjectWalkerStruct_methods[] = {
     };
 
 
+// it seems silly that the name attr in a PyMemberDef isn't a const char*
+// AFAIK, it's never modified by python
 static PyMemberDef PyObjectWalkerStruct_members[] = {
-    {"objectRegistry", T_OBJECT_EX,
+    {const_cast<char*>("objectRegistry"), T_OBJECT_EX,
      offsetof(PyObjectWalkerStruct, binaryObjectRegistry), 0,
-     "object registry attribute"},
+    const_cast<char*>("object registry attribute")},
     {NULL}
     };
 
