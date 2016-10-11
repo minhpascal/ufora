@@ -26,12 +26,6 @@ public:
     static std::pair<std::string, std::string> sourceFilenameAndText(const PyObject*);
     static long startingSourceLine(const PyObject*);
 
-    /*
-      These Next three functions (wich return PyObject*) return new references
-      to objects, or NULL in the case of error conditions. All of them call
-      PyObject_CallMethodObjArgs, so in the case of error conditions, they set an
-      error string.
-     */
     static PyObject* pyAstFromText(const std::string& fileText);
     static PyObject* pyAstFromText(const PyObject* pyString);
     static PyObject* functionDefOrLambdaAtLineNumber(const PyObject* obj,

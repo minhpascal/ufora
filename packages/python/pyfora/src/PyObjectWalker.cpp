@@ -300,7 +300,6 @@ int64_t PyObjectWalker::walkFileDescription(const FileDescription& fileDescripti
 bool PyObjectWalker::_canMap(PyObject* pyObject) const
     {
     PyObject* pyString = PyString_FromString("canMap");
-
     if (pyString == NULL) {
         PyErr_Print();
         throw std::logic_error("couldn't make a PyString from a C++ string");
@@ -369,7 +368,6 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
     /* Missing:
 
        RemotePythonObject.RemotePythonObject -- uses ComputedValue. going away?
-       PyforaWithBlock.PyforaWithBlock
        _Unconvertible
     */
     if (PyObject_IsInstance(pyObject, mPackedHomogenousDataClass))
@@ -490,7 +488,7 @@ void PyObjectWalker::_registerFuture(int64_t objectId, PyObject* pyObject)
         throw std::logic_error("expected a result member on Future.Future instances");
         }
 
-    PyObject* res = PyObject_CallMethodObjArgs(result_attr, NULL);
+    PyObject* res = PyObject_CallFunctionObjArgs(result_attr, NULL);
     Py_DECREF(result_attr);
     if (res == NULL) {
         PyErr_Print();

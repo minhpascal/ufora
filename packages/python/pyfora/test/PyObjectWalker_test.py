@@ -1,4 +1,4 @@
-#   Copyright 2015 Ufora Inc.
+#   Copyright 2016 Ufora Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import pyfora.NamedSingletons as NamedSingletons
 
 import ast
 import numpy
-import os
 import time
 import unittest
 
@@ -269,14 +268,14 @@ class PyObjectWalkerTest(unittest.TestCase):
             lineNumber=41,
             sourceText=sourceText,
             boundVariables={
-                'w':1,
-                'y':2,
-                'f':withBlockExamples.f,
-                'C':withBlockExamples.C,
-                'c':withBlockExamples.C(3)
+                'w': withBlockExamples.w,
+                'y': withBlockExamples.y,
+                'f': withBlockExamples.f,
+                'C': withBlockExamples.C,
+                'c': withBlockExamples.c
                 },
             sourceFileName=filename,
-            unboundLocals=[]
+            unboundLocals=['z']
             )
 
         self.assertWalkersEquivalent(withBlock)
