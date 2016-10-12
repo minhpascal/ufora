@@ -47,6 +47,7 @@ private:
     int64_t _allocateId(PyObject* pyObject);
     void _walkPyObject(PyObject* pyObject, int64_t objectId);
     
+    void _registerRemotePythonObject(int64_t objectId, PyObject* pyObject);
     void _registerPackedHomogenousData(int64_t objectId, PyObject* pyObject);
     void _registerFuture(int64_t objectId, PyObject* pyObject);
     void _registerBuiltinExceptionInstance(int64_t objectId, PyObject* pyException);

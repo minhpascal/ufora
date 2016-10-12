@@ -370,6 +370,10 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
        RemotePythonObject.RemotePythonObject -- uses ComputedValue. going away?
        _Unconvertible
     */
+    if (PyObject_IsInstance(pyObject, mRemotePythonObjectClass))
+        {
+        _registerRemotePythonObject(objectId, pyObject);
+        }
     if (PyObject_IsInstance(pyObject, mPackedHomogenousDataClass))
         {
         _registerPackedHomogenousData(objectId, pyObject);
@@ -469,6 +473,13 @@ bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject) const
     Py_DECREF(__class__attr);
 
     return tr;
+    }
+
+
+void PyObjectWalker::_registerRemotePythonObject(int64_t objectId,
+                                                 PyObject* pyObject)
+    {
+    throw std::logic_error("_registerRemotePythonObject: not implemented");
     }
 
 
