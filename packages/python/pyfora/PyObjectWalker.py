@@ -21,6 +21,7 @@ import pyfora.PyforaWithBlock as PyforaWithBlock
 import pyfora.TypeDescription as TypeDescription
 import pyfora.PyforaInspect as PyforaInspect
 import pyfora.pyAst.PyAstUtil as PyAstUtil
+import pyfora.PyObjectWalkerDefaults as PyObjectWalkerDefaults
 import pyfora.ModuleLevelObjectIndex as ModuleLevelObjectIndex
 from pyfora.FreeVariableResolver import FreeVariableResolver
 from pyfora.TypeDescription import isPrimitive
@@ -130,7 +131,12 @@ class PyObjectWalker(object):
             objects we visit.
 
     """
-    def __init__(self, purePythonClassMapping, objectRegistry):
+    def __init__(self,
+                 purePythonClassMapping,
+                 objectRegistry,
+                 excludePredicateFun=None,
+                 excludeList=None,
+                 terminalValueFilter=None):
         assert purePythonClassMapping is not None
 
         for singleton in NamedSingletons.pythonSingletonToName:
@@ -145,13 +151,19 @@ class PyObjectWalker(object):
         self._pyObjectIdToObjectId = {}
         self._pyObjectIdToObject = {}
         self._objectRegistry = objectRegistry
-        
-        def terminal_value_filter(terminalValue):
-            return not self._purePythonClassMapping.isOpaqueModule(terminalValue)
 
+        if excludePredicateFun is None:
+            excludePredicateFun = PyObjectWalkerDefaults.exclude_predicate_fun
+        if excludeList is None:
+            excludeList = PyObjectWalkerDefaults.exclude_list
+        if terminalValueFilter is None:
+            terminalValueFilter = PyObjectWalkerDefaults.terminal_value_filter
+        
         self._freeVariableResolver = FreeVariableResolver(
-            exclude_list=['staticmethod', 'property', '__inline_fora'],
-            terminal_value_filter=terminal_value_filter)
+            exclude_list=excludeList,
+            terminal_value_filter=terminalValueFilter)
+
+        self.excludePredicateFun = excludePredicateFun
 
     def _allocateId(self, pyObject):
         objectId = self._objectRegistry.allocateObject()
@@ -614,19 +626,13 @@ class PyObjectWalker(object):
                 processedFreeVariableMemberAccessChainResolutions
             )
 
-    @staticmethod
-    def _freeMemberAccessChainsWithPositions(pyAst):
-        def is_pureMapping_call(node):
-            return isinstance(node, ast.Call) and \
-                isinstance(node.func, ast.Name) and \
-                node.func.id == 'pureMapping'
-
+    def _freeMemberAccessChainsWithPositions(self, pyAst):
         freeVariableMemberAccessChains = \
             PyAstFreeVariableAnalyses.getFreeVariableMemberAccessChains(
                 pyAst,
                 isClassContext=False,
                 getPositions=True,
-                exclude_predicate=is_pureMapping_call
+                exclude_predicate=self.excludePredicateFun
                 )
 
         return freeVariableMemberAccessChains

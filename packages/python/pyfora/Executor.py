@@ -25,8 +25,10 @@ import pyfora.RemotePythonObject as RemotePythonObject
 import pyfora.PythonObjectRehydrator as PythonObjectRehydrator
 import pyfora.BinaryObjectRegistry as BinaryObjectRegistry
 import pyfora.PyObjectWalker as PyObjectWalker
+from pyfora.UnresolvedFreeVariableExceptions import UnresolvedFreeVariableExceptionWithTrace
 import pyfora.WithBlockExecutor as WithBlockExecutor
-import pyfora.PureImplementationMappings as PureImplementationMappings
+import pyfora.PyObjectWalkerDefaults as PyObjectWalkerDefaults
+
 import traceback
 import logging
 import threading
@@ -71,12 +73,16 @@ class Executor(object):
         self.connection = connection
         self.stayOpenOnExit = False
         self.pureImplementationMappings = \
-            pureImplementationMappings or PureImplementationMappings.PureImplementationMappings()
+            pureImplementationMappings or PyObjectWalkerDefaults.mappings
         self.binaryObjectRegistry = BinaryObjectRegistry.BinaryObjectRegistry()
         self.objectRehydrator = PythonObjectRehydrator.PythonObjectRehydrator(
             self.pureImplementationMappings
             )
-        self.lock = threading.Lock()
+        self.excludeList = PyObjectWalkerDefaults.exclude_list
+
+        self.excludePredicateFun = PyObjectWalkerDefaults.exclude_predicate_fun
+
+        self.terminalValueFilter = PyObjectWalkerDefaults.terminal_value_filter
 
 
     def getWorkerCount(self):
@@ -201,10 +207,13 @@ class Executor(object):
         self._raiseIfClosed()
         try:
             objectId = PyObjectWalker.PyObjectWalker(
-                purePythonClassMapping=self.pureImplementationMappings,
-                objectRegistry=self.binaryObjectRegistry
+                self.pureImplementationMappings,
+                self.binaryObjectRegistry,
+                self.excludePredicateFun,
+                self.excludeList,
+                self.terminalValueFilter
                 ).walkPyObject(obj)
-        except PyObjectWalker.UnresolvedFreeVariableExceptionWithTrace as e:
+        except UnresolvedFreeVariableExceptionWithTrace as e:
             logging.error(
                 "Converting UnresolvedFreeVariableExceptionWithTrace to PythonToForaConversionError:\n%s",
                 traceback.format_exc())
