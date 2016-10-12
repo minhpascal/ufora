@@ -693,8 +693,7 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
             boundVariables,
             pyConvertedObjectCache);
     if (resolutions == NULL) {
-        PyErr_Print();
-        throw std::logic_error("error resolving free variables");
+        throw std::logic_error(PyObjectUtils::exc_string());
         }
 
     Py_DECREF(pyConvertedObjectCache);
@@ -909,8 +908,10 @@ PyObjectWalker::_classOrFunctionInfo(const PyObject* obj, bool isFunction)
         }
 
     PyObject* resolutions =
-        _computeAndResolveFreeVariableMemberAccessChainsInAst(obj,
-                                                              pyAst);
+        _computeAndResolveFreeVariableMemberAccessChainsInAst(obj, pyAst);
+    if (resolutions == NULL) {
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
 
     Py_DECREF(pyAst);
 
