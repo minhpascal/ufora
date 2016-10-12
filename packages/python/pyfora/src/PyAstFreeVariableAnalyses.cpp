@@ -38,7 +38,7 @@ void PyAstFreeVariableAnalyses::_initVarWithPosition()
     mVarWithPosition = PyObject_GetAttrString(mPyAstFreeVariableAnalysesModule,
                                               "VarWithPosition");
     if (mVarWithPosition == NULL) {
-        throw std::logic_error("error getting VarWithPosition attr "
+        throw std::runtime_error("error getting VarWithPosition attr "
                                "on PyAstFreeVariableAnalyses module");
         }
     }
@@ -49,14 +49,14 @@ void PyAstFreeVariableAnalyses::_initPyAstFreeVariableAnalysesModule()
     PyObject* pyforaModule = PyImport_ImportModule("pyfora");
     if (pyforaModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import pyfora module");
+        throw std::runtime_error("couldn't import pyfora module");
         }
 
     PyObject* pyAstModule = PyObject_GetAttrString(pyforaModule,
                                                    "pyAst");
     if (pyAstModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't access member pyAst of pyfora");
+        throw std::runtime_error("couldn't access member pyAst of pyfora");
         }
 
     mPyAstFreeVariableAnalysesModule = 
@@ -64,7 +64,7 @@ void PyAstFreeVariableAnalyses::_initPyAstFreeVariableAnalysesModule()
                                "PyAstFreeVariableAnalyses");
     if (mPyAstFreeVariableAnalysesModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import PyAstFreeVariableAnalyses module");
+        throw std::runtime_error("couldn't import PyAstFreeVariableAnalyses module");
         }
     
     Py_DECREF(pyAstModule);
@@ -80,7 +80,7 @@ void PyAstFreeVariableAnalyses::_initGetFreeVariableMemberAccessChainsFun()
 
     if (mGetFreeVariableMemberAccessChainsFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `getFreeVariableMemberAccessChains` "
+        throw std::runtime_error("couldn't get `getFreeVariableMemberAccessChains` "
                               "member of PyAstUtilModule");
         }
     }

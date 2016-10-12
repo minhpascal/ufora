@@ -95,7 +95,7 @@ void BinaryObjectRegistry::_writePrimitive(PyObject* obj) {
             }
         }
     else {
-        throw std::logic_error(
+        throw std::runtime_error(
             "got an invalid type in _writePrimitive: " + 
             PyObjectUtils::repr_string(obj));
         }
@@ -321,7 +321,7 @@ void BinaryObjectRegistry::definePackedHomogenousData(int64_t objectId,
     PyObject* dtype = PyObject_GetAttrString(pyObject, "dtype");
     if (dtype == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get dtype attr");
+        throw std::runtime_error("couldn't get dtype attr");
         }
 
     _writeDTypeElement(dtype);
@@ -331,11 +331,11 @@ void BinaryObjectRegistry::definePackedHomogenousData(int64_t objectId,
     PyObject* dataAsBytes = PyObject_GetAttrString(pyObject, "dataAsBytes");
     if (dataAsBytes == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get dataAsBytes attr");
+        throw std::runtime_error("couldn't get dataAsBytes attr");
         }
     if (not PyString_Check(dataAsBytes)) {
         Py_DECREF(dataAsBytes);
-        throw std::logic_error("expected dataAsBytes attr to be a string");
+        throw std::runtime_error("expected dataAsBytes attr to be a string");
         }
 
     mStringBuilder.addString(
@@ -372,7 +372,7 @@ void BinaryObjectRegistry::_writeDTypeElement(PyObject* val)
             }
         }
     else {
-        throw std::logic_error("unknown primitive in dtype: " +
+        throw std::runtime_error("unknown primitive in dtype: " +
             PyObjectUtils::str_string(val));
         }
     }

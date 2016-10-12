@@ -24,10 +24,10 @@ std::string PyObjectUtils::repr_string(PyObject* obj)
     PyObject* obj_repr = PyObject_Repr(obj);
     if (obj_repr == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't compute repr of an object");
+        throw std::runtime_error("couldn't compute repr of an object");
         }
     if (not PyString_Check(obj_repr)) {
-        throw std::logic_error("repr returned a non string");
+        throw std::runtime_error("repr returned a non string");
         }
 
     std::string tr = std::string(
@@ -46,10 +46,10 @@ std::string PyObjectUtils::str_string(PyObject* obj)
     PyObject* obj_str = PyObject_Str(obj);
     if (obj_str == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't compute repr of an object");
+        throw std::runtime_error("couldn't compute repr of an object");
         }
     if (not PyString_Check(obj_str)) {
-        throw std::logic_error("repr returned a non string");
+        throw std::runtime_error("repr returned a non string");
         }
 
     std::string tr = std::string(
@@ -68,7 +68,7 @@ std::string PyObjectUtils::std_string(const PyObject* string)
     char* str = PyString_AS_STRING(string);
     if (str == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't create a C-string from a PyString");
+        throw std::runtime_error("couldn't create a C-string from a PyString");
         }
 
     Py_ssize_t length = PyString_GET_SIZE(string);
@@ -82,7 +82,7 @@ std::string PyObjectUtils::format_exc()
     PyObject* traceback_module = PyImport_ImportModule("traceback");
     if (traceback_module == NULL) {
         PyErr_Print();
-        throw std::logic_error("error importing traceback module");
+        throw std::runtime_error("error importing traceback module");
         }
 
     PyObject* format_exc_fun = PyObject_GetAttrString(
@@ -90,17 +90,17 @@ std::string PyObjectUtils::format_exc()
         "format_exc");
     if (format_exc_fun == NULL) {
         PyErr_Print();
-        throw std::logic_error("error getting traceback.format_exc function");
+        throw std::runtime_error("error getting traceback.format_exc function");
         }
 
     PyObject* tb_str = PyObject_CallFunctionObjArgs(format_exc_fun, NULL);
     if (tb_str == NULL) {
         PyErr_Print();
-        throw std::logic_error("error calling traceback.format_exc");
+        throw std::runtime_error("error calling traceback.format_exc");
         }
 
     if (not PyString_Check(tb_str)) {
-        throw std::logic_error("expected a string");
+        throw std::runtime_error("expected a string");
         }
 
     std::string tr = PyObjectUtils::std_string(tb_str);
@@ -179,7 +179,7 @@ long PyObjectUtils::builtin_id(PyObject* pyObject)
     PyObject* pyObject_builtin_id = PyLong_FromVoidPtr(pyObject);
     if (pyObject_builtin_id == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get a builtin id");
+        throw std::runtime_error("couldn't get a builtin id");
         }
 
     int overflow;
@@ -188,7 +188,7 @@ long PyObjectUtils::builtin_id(PyObject* pyObject)
     Py_DECREF(pyObject_builtin_id);
 
     if (overflow != 0) {
-        throw std::logic_error("overflow in converting a python long to a C long");
+        throw std::runtime_error("overflow in converting a python long to a C long");
         }
 
     return tr;
@@ -207,7 +207,7 @@ bool PyObjectUtils::in(PyObject* container, PyObject* value)
         return _in_list(container, value);
         }
     else {
-        throw std::logic_error("we haven't implemented all alternatives here. "
+        throw std::runtime_error("we haven't implemented all alternatives here. "
                                "should just call back into python."
             );
         }

@@ -47,7 +47,7 @@ void PyAstUtil::_initClassDefAtLineNumberFun()
 
     if (mClassDefAtLineNumberFun == NULL) {
         PyErr_Print();
-        throw std::logic_error(
+        throw std::runtime_error(
             "couldn't get `classDefAtLineNumber` member"
             " of PyAstUtilModule");
         }
@@ -62,7 +62,7 @@ void PyAstUtil::_initFunctionDefOrLambdaAtLineNumberFun()
 
     if (mFunctionDefOrLambdaAtLineNumberFun == NULL) {
         PyErr_Print();
-        throw std::logic_error(
+        throw std::runtime_error(
             "couldn't get `functionDefOrLambdaAtLineNumber` member"
             " of PyAstUtilModule");
         }
@@ -75,7 +75,7 @@ void PyAstUtil::_initPyAstFromTextFun()
         PyObject_GetAttrString(mPyAstUtilModule, "pyAstFromText");
     if (mPyAstFromTextFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `pyAstFromText` member"
+        throw std::runtime_error("couldn't get `pyAstFromText` member"
                                " of PyAstUtilModule");
         }    
     }
@@ -87,7 +87,7 @@ void PyAstUtil::_initGetSourceLinesFun()
         PyObject_GetAttrString(mPyAstUtilModule, "getSourceLines");
     if (mGetSourceLinesFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `getSourceLines` member"
+        throw std::runtime_error("couldn't get `getSourceLines` member"
                                " of PyAstUtilModule");
         }
     }
@@ -99,7 +99,7 @@ void PyAstUtil::_initGetSourceFilenameAndTextFun()
         PyObject_GetAttrString(mPyAstUtilModule, "getSourceFilenameAndText");
     if (mGetSourceFilenameAndTextFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `getSourceFilenameAndText` member"
+        throw std::runtime_error("couldn't get `getSourceFilenameAndText` member"
                                " of PyAstUtilModule");
         }
     }
@@ -110,14 +110,14 @@ void PyAstUtil::_initPyAstUtilModule()
     PyObject* pyforaModule = PyImport_ImportModule("pyfora");
     if (pyforaModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import pyfora module");
+        throw std::runtime_error("couldn't import pyfora module");
         }
 
     PyObject* pyAstModule = PyObject_GetAttrString(pyforaModule, "pyAst");
     if (pyAstModule == NULL) {
         PyErr_Print();
         Py_DECREF(pyforaModule);
-        throw std::logic_error("couldn't find pyAst member on pyfora");
+        throw std::runtime_error("couldn't find pyAst member on pyfora");
         }
 
     mPyAstUtilModule = PyObject_GetAttrString(pyAstModule, "PyAstUtil");
@@ -125,7 +125,7 @@ void PyAstUtil::_initPyAstUtilModule()
     Py_DECREF(pyforaModule);
     if (mPyAstUtilModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import PyAstUtil module");
+        throw std::runtime_error("couldn't import PyAstUtil module");
         }
     }
 
@@ -142,12 +142,12 @@ PyAstUtil::sourceFilenameAndText(const PyObject* pyObject)
         throw CantGetSourceTextError(PyObjectUtils::exc_string());
         }
     if (not PyTuple_Check(res)) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "expected a tuple in calling getSourceFilenameAndText"
             );
         }
     if (PyTuple_GET_SIZE(res) != 2) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "we expected getSourceFilenameAndText to return a tuple of length two"
             );
         }
@@ -157,7 +157,7 @@ PyAstUtil::sourceFilenameAndText(const PyObject* pyObject)
     PyObject* sourceFileName = PyTuple_GET_ITEM(res, 1);
 
     if (not PyString_Check(sourceFileName) or not PyString_Check(sourceFileText)) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "expected getSourceFilenameAndText to return two strings"
             );
         }
@@ -185,12 +185,12 @@ long PyAstUtil::startingSourceLine(const PyObject* pyObject)
         }
 
     if (not PyTuple_Check(res)) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "expected a tuple in calling getSourceLines: expected a tuple"
             );
         }
     if (PyTuple_GET_SIZE(res) != 2) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "we expected getSourceLines to return a tuple of length two"
             );
         }
@@ -199,11 +199,11 @@ long PyAstUtil::startingSourceLine(const PyObject* pyObject)
     PyObject* startingSourceLine = PyTuple_GET_ITEM(res, 1);
     if (startingSourceLine == NULL) {
         PyErr_Print();
-        throw std::logic_error("hit an error calling PyforaInspect.getSourceLines");
+        throw std::runtime_error("hit an error calling PyforaInspect.getSourceLines");
         }
 
     if (not PyInt_Check(startingSourceLine)) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "expected PyforaInspect.getSourceLines to return an int");
         }
 
@@ -221,7 +221,7 @@ PyObject* PyAstUtil::pyAstFromText(const std::string& fileText)
                                                     fileText.size());
     if (pyString == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't create a PyString out of a C++ string");
+        throw std::runtime_error("couldn't create a PyString out of a C++ string");
         }
 
     PyObject* res = _pyAstFromText(pyString);
@@ -263,7 +263,7 @@ PyAstUtil::functionDefOrLambdaAtLineNumber(const PyObject* pyObject,
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
     if (pySourceLine == NULL) {
         PyErr_Print();
-        throw std::logic_error("error creating a python int out of a C++ long");
+        throw std::runtime_error("error creating a python int out of a C++ long");
         }
 
     PyObject* tr = PyObject_CallFunctionObjArgs(
@@ -275,7 +275,7 @@ PyAstUtil::functionDefOrLambdaAtLineNumber(const PyObject* pyObject,
 
     if (tr == NULL) {
         PyErr_Print();
-        throw std::logic_error("error calling functionDefOrLambdaAtLineNumber");
+        throw std::runtime_error("error calling functionDefOrLambdaAtLineNumber");
         }
 
     Py_DECREF(pySourceLine);
@@ -291,7 +291,7 @@ PyAstUtil::classDefAtLineNumber(const PyObject* pyObject,
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
     if (pySourceLine == NULL) {
         PyErr_Print();
-        throw std::logic_error("error creating a python int out of a C++ long");
+        throw std::runtime_error("error creating a python int out of a C++ long");
         }
 
     PyObject* tr = PyObject_CallFunctionObjArgs(
@@ -303,7 +303,7 @@ PyAstUtil::classDefAtLineNumber(const PyObject* pyObject,
 
     if (tr == NULL) {
         PyErr_Print();
-        throw std::logic_error("error calling classDefAtLineNumber");
+        throw std::runtime_error("error calling classDefAtLineNumber");
         }
 
     Py_DECREF(pySourceLine);
@@ -347,7 +347,7 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
         "collectDataMembersSetInInit");
     if (collectDataMembersSetInInitFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get collectDataMembersSetInInit function");
+        throw std::runtime_error("couldn't get collectDataMembersSetInInit function");
         }
 
     PyObject* res = PyObject_CallFunctionObjArgs(
@@ -368,7 +368,7 @@ bool PyAstUtil::hasReturnInOuterScope(const PyObject* pyAst)
         _getInstance().mPyAstUtilModule,
         "hasReturnInOuterScope");
     if (hasReturnInOuterScopeFun == NULL) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "error getting hasReturnInOuterScope attr on PyAstUtil module");
         }
 
@@ -378,11 +378,11 @@ bool PyAstUtil::hasReturnInOuterScope(const PyObject* pyAst)
         NULL);
     Py_DECREF(hasReturnInOuterScopeFun);
     if (pyBool == NULL) {
-        throw std::logic_error("error calling hasReturnInOuterScope");
+        throw std::runtime_error("error calling hasReturnInOuterScope");
         }
     if (not PyBool_Check(pyBool)) {
         Py_DECREF(pyBool);
-        throw std::logic_error("expected a bool returned from hasReturnInOuterScope");
+        throw std::runtime_error("expected a bool returned from hasReturnInOuterScope");
         }
 
     bool tr = (pyBool == Py_True);
@@ -399,7 +399,7 @@ bool PyAstUtil::hasYieldInOuterScope(const PyObject* pyAst)
         _getInstance().mPyAstUtilModule,
         "hasYieldInOuterScope");
     if (hasYieldInOuterScopeFun == NULL) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "error getting hasYieldInOuterScope attr on PyAstUtil module");
         }
 
@@ -409,11 +409,11 @@ bool PyAstUtil::hasYieldInOuterScope(const PyObject* pyAst)
         NULL);
     Py_DECREF(hasYieldInOuterScopeFun);
     if (pyBool == NULL) {
-        throw std::logic_error("error calling hasYieldInOuterScope");
+        throw std::runtime_error("error calling hasYieldInOuterScope");
         }
     if (not PyBool_Check(pyBool)) {
         Py_DECREF(pyBool);
-        throw std::logic_error("expected a bool returned from hasYieldInOuterScope");
+        throw std::runtime_error("expected a bool returned from hasYieldInOuterScope");
         }
 
     bool tr = (pyBool == Py_True);

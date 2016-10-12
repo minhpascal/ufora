@@ -80,7 +80,7 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
         PyImport_ImportModule("pyfora.binaryobjectregistry");
 
     if (binaryObjectRegistryModule == NULL) {
-        throw std::logic_error("couldn't import pyfora.binaryobjectregistry");
+        throw std::runtime_error("couldn't import pyfora.binaryobjectregistry");
         }
 
     PyObject* binaryObjectRegistryClass = 
@@ -88,7 +88,7 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
                                "BinaryObjectRegistry");
     
     if (binaryObjectRegistryClass == NULL) {
-        throw std::logic_error(
+        throw std::runtime_error(
             "couldn't find pyfora.binaryobjectregistry.BinaryObjectRegistry"
             );
         }

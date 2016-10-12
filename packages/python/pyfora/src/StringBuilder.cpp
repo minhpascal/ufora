@@ -96,7 +96,7 @@ void StringBuilder::addStringTuple(const char* s, uint64_t byteCount) {
 
 void StringBuilder::addStringTuple(const PyObject* tupOfStrings) {
     if (not PyTuple_Check(tupOfStrings)) {
-        throw std::logic_error("addStringTuple needs tuple arguments");
+        throw std::runtime_error("addStringTuple needs tuple arguments");
         }
     
     Py_ssize_t len = PyTuple_GET_SIZE(tupOfStrings);
@@ -106,7 +106,7 @@ void StringBuilder::addStringTuple(const PyObject* tupOfStrings) {
     for (Py_ssize_t ix = 0; ix < len; ++ix) {
         PyObject* item = PyTuple_GET_ITEM(tupOfStrings, ix);
         if (not PyString_Check(item)) {
-            throw std::logic_error("addStringTuple needs to be a tuple of *strings*");
+            throw std::runtime_error("addStringTuple needs to be a tuple of *strings*");
             }
         addString(PyString_AS_STRING(item), PyString_GET_SIZE(item));
         }

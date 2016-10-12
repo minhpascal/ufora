@@ -25,7 +25,7 @@ Ast::Ast() :
 
     if (mAstModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import ast module");
+        throw std::runtime_error("couldn't import ast module");
         }
     }
 
@@ -38,7 +38,7 @@ PyObject* Ast::FunctionDef(PyObject* args, PyObject* kw)
         );
     if (FunctionDefFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `FunctionDef` attr from ast module");
+        throw std::runtime_error("couldn't get `FunctionDef` attr from ast module");
         }
 
     PyObject* res = PyObject_Call(FunctionDefFun, args, kw);
@@ -57,7 +57,7 @@ PyObject* Ast::arguments(PyObject* args, PyObject* kw)
         );
     if (argumentsFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get `arguments` attr from ast module");
+        throw std::runtime_error("couldn't get `arguments` attr from ast module");
         }
 
     PyObject* res = PyObject_Call(argumentsFun, args, kw);

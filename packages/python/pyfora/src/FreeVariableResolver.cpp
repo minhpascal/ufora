@@ -45,7 +45,7 @@ void FreeVariableResolver::_initPureFreeVariableResolver()
     PyObject* pyforaModule = PyImport_ImportModule("pyfora");
     if (pyforaModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import pyforaModule");
+        throw std::runtime_error("couldn't import pyforaModule");
         }
     
     PyObject* freeVariableResolverModule = PyObject_GetAttrString(
@@ -55,7 +55,7 @@ void FreeVariableResolver::_initPureFreeVariableResolver()
     if (freeVariableResolverModule == NULL) {
         PyErr_Print();
         Py_DECREF(pyforaModule);
-        throw std::logic_error("couldn't find FreeVariableResolver attr on pyfora");
+        throw std::runtime_error("couldn't find FreeVariableResolver attr on pyfora");
         }
 
     PyObject* freeVariableResolverClass = PyObject_GetAttrString(
@@ -76,7 +76,7 @@ void FreeVariableResolver::_initPureFreeVariableResolver()
 
     if (mPureFreeVariableResolver == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't create a pure FreeVariableResolver instance");
+        throw std::runtime_error("couldn't create a pure FreeVariableResolver instance");
         }
     }
 
@@ -92,7 +92,7 @@ PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChainsInAst(
                                "resolveFreeVariableMemberAccessChainsInAst");
     if (resolveFreeVariableMemberAccessChainsInAstFun == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't get "
+        throw std::runtime_error("couldn't get "
             "resolveFreeVariableMemberAccessChainsInAst"
             " member on a FreeVariableResolver");
         }

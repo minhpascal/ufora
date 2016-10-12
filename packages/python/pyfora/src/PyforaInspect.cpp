@@ -36,35 +36,35 @@ void PyforaInspect::_initMembers()
     PyObject* typesModule = PyImport_ImportModule("types");
     if (typesModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import types module");
+        throw std::runtime_error("couldn't import types module");
         }
 
     mClassType = PyObject_GetAttrString(typesModule, "ClassType");
     if (mClassType == NULL) {
         PyErr_Print();
         Py_DECREF(typesModule);
-        throw std::logic_error("couldn't get ClassType member in types module");
+        throw std::runtime_error("couldn't get ClassType member in types module");
         }
 
     mTypeType = PyObject_GetAttrString(typesModule, "TypeType");
     if (mTypeType == NULL) {
         PyErr_Print();
         Py_DECREF(typesModule);
-        throw std::logic_error("couldn't get TypeType member in types module");
+        throw std::runtime_error("couldn't get TypeType member in types module");
         }
 
     mFunctionType = PyObject_GetAttrString(typesModule, "FunctionType");
     if (mFunctionType == NULL) {
         PyErr_Print();
         Py_DECREF(typesModule);
-        throw std::logic_error("couldn't get FunctionType member in types module");
+        throw std::runtime_error("couldn't get FunctionType member in types module");
         }
 
     mModuleType = PyObject_GetAttrString(typesModule, "ModuleType");
     if (mModuleType == NULL) {
         PyErr_Print();
         Py_DECREF(typesModule);
-        throw std::logic_error("couldn't get ModuleType member in types module");
+        throw std::runtime_error("couldn't get ModuleType member in types module");
         }
 
     Py_DECREF(typesModule);
@@ -73,20 +73,20 @@ void PyforaInspect::_initMembers()
 
     if (mPyforaModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import pyfora module");
+        throw std::runtime_error("couldn't import pyfora module");
         }
     mPyforaInspectModule = PyObject_GetAttrString(mPyforaModule,
                                                   "PyforaInspect");
     if (mPyforaInspectModule == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't import pyfora.PyforaInspect");
+        throw std::runtime_error("couldn't import pyfora.PyforaInspect");
         }
 
     mGetLinesFunc = PyObject_GetAttrString(mPyforaInspectModule,
                                            "getlines");
     if (mGetLinesFunc == NULL) {
         PyErr_Print();
-        throw std::logic_error("couldn't find `getlines` func in pyfora.PyforaInspect");
+        throw std::runtime_error("couldn't find `getlines` func in pyfora.PyforaInspect");
         }
     }
 

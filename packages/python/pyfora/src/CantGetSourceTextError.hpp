@@ -18,9 +18,9 @@
 #include <stdexcept>
 
 
-class CantGetSourceTextError : public std::logic_error {
+class CantGetSourceTextError : public std::runtime_error {
 public:
-    CantGetSourceTextError(const std::string& s) : std::logic_error(s)
+    CantGetSourceTextError(const std::string& s) : std::runtime_error(s)
         {
         }
 };
