@@ -655,21 +655,26 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
         throw std::logic_error("error getting with block ast functionDef");
         }
     if (PyAstUtil::hasReturnInOuterScope(withBlockFun)) {
+        Py_DECREF(withBlockFun);
         throw std::logic_error("return statement not supported in pyfora with-block");
         }
     if (PyAstUtil::hasYieldInOuterScope(withBlockFun)) {
+        Py_DECREF(withBlockFun);
         throw std::logic_error("yield expression not supported in pyfora with-block");
         }
 
     PyObject* chainsWithPositions = _freeMemberAccessChainsWithPositions(withBlockFun);
     if (chainsWithPositions == NULL) {
         PyErr_Print();
+        Py_DECREF(withBlockFun);
         throw std::logic_error("error getting freeMemberAccessChainsWithPositions");
         }
 
     PyObject* boundVariables = PyObject_GetAttrString(pyObject, "boundVariables");
     if (boundVariables == NULL) {
         PyErr_Print();
+        Py_DECREF(chainsWithPositions);
+        Py_DECREF(withBlockFun);
         throw std::logic_error("couldn't get boundVariables attr");
         }
 
@@ -684,6 +689,8 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
     PyObject* pyConvertedObjectCache = _getPyConvertedObjectCache();
     if (pyConvertedObjectCache == NULL) {
         PyErr_Print();
+        Py_DECREF(boundVariables);
+        Py_DECREF(chainsWithPositions);
         throw std::logic_error("error getting pyConvertedObjectCache");
         }
 
@@ -692,13 +699,14 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
             chainsWithPositions,
             boundVariables,
             pyConvertedObjectCache);
-    if (resolutions == NULL) {
-        throw std::logic_error(PyObjectUtils::exc_string());
-        }
 
     Py_DECREF(pyConvertedObjectCache);
     Py_DECREF(boundVariables);
     Py_DECREF(chainsWithPositions);
+
+    if (resolutions == NULL) {
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
 
     std::map<FreeVariableMemberAccessChain, int64_t> processedResolutions =
         _processFreeVariableMemberAccessChainResolutions(resolutions);
@@ -712,6 +720,7 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
             "error getting sourceFileName attr in _registerWithBlock");
         }
     if (not PyString_Check(filename)) {
+        Py_DECREF(filename);
         throw std::logic_error("expected sourceFileName attr to be a string");
         }
 
@@ -758,14 +767,24 @@ void PyObjectWalker::_augmentChainsWithBoundValuesInScope(
     PyObject* iterator = PyObject_GetIter(boundValuesInScopeWithPositions);
     if (iterator == NULL) {
         PyErr_Print();
+        Py_DECREF(unboundLocals);
+        Py_DECREF(boundValuesInScopeWithPositions);
         throw std::logic_error("error calling iter");
         }    
     PyObject* item = NULL;
     while((item = PyIter_Next(iterator)) != NULL) {
         if (!PyTuple_Check(item)) {
+            Py_DECREF(item);
+            Py_DECREF(iterator);
+            Py_DECREF(unboundLocals);
+            Py_DECREF(boundValuesInScopeWithPositions);
             throw std::logic_error("expected items to be tuples");
             }
         if (PyTuple_GET_SIZE(item) != 2) {
+            Py_DECREF(item);
+            Py_DECREF(iterator);
+            Py_DECREF(unboundLocals);
+            Py_DECREF(boundValuesInScopeWithPositions);
             throw std::logic_error("expected items to be length-two tuples");
             }
 
@@ -778,11 +797,21 @@ void PyObjectWalker::_augmentChainsWithBoundValuesInScope(
             PyObject* varWithPosition = 
                 PyAstFreeVariableAnalyses::varWithPosition(val, pos);
             if (varWithPosition == NULL) {
+                Py_DECREF(item);
+                Py_DECREF(iterator);
+                Py_DECREF(unboundLocals);
+                Py_DECREF(boundValuesInScopeWithPositions);
                 throw std::logic_error("couldn't get VarWithPosition");
                 }
             if (PySet_Add(chainsWithPositions, varWithPosition) != 0) {
+                Py_DECREF(varWithPosition);
+                Py_DECREF(item);
+                Py_DECREF(iterator);
+                Py_DECREF(unboundLocals);
+                Py_DECREF(boundValuesInScopeWithPositions);
                 throw std::logic_error("error adding to a set");
                 }
+            Py_DECREF(varWithPosition);
             }
         }
 
@@ -901,19 +930,17 @@ PyObjectWalker::_classOrFunctionInfo(const PyObject* obj, bool isFunction)
 
     Py_DECREF(sourceAst);
 
-    if (pyAst == NULL)
-        {
+    if (pyAst == NULL) {
         PyErr_Print();
         throw std::logic_error("an error occured getting the sub-ast.");
         }
 
     PyObject* resolutions =
         _computeAndResolveFreeVariableMemberAccessChainsInAst(obj, pyAst);
+    Py_DECREF(pyAst);
     if (resolutions == NULL) {
         throw std::logic_error(PyObjectUtils::exc_string());
         }
-
-    Py_DECREF(pyAst);
 
     std::map<FreeVariableMemberAccessChain, int64_t> processedResolutions =
         _processFreeVariableMemberAccessChainResolutions(resolutions);
@@ -953,11 +980,7 @@ PyObjectWalker::_processFreeVariableMemberAccessChainResolutions(
             throw std::logic_error("expected values to be tuples of length 2");
             }
         PyObject* resolution = PyTuple_GET_ITEM(value, 0);
-        Py_INCREF(resolution);
-        Py_INCREF(key);
         tr[_toChain(key)] = walkPyObject(resolution);
-        Py_DECREF(key);
-        Py_DECREF(resolution);
         }
 
     return tr;
@@ -978,12 +1001,11 @@ PyObject* PyObjectWalker::_getPyConvertedObjectCache() const
         {
         PyObject* pyLong = PyLong_FromLong(it->first);
         if (pyLong == NULL) {
-            PyErr_Print();
+            Py_DECREF(tr);
             throw std::logic_error("error getting python long from C long");
             }
 
-        if (PyDict_SetItem(tr, pyLong, it->second) != 0)
-            {
+        if (PyDict_SetItem(tr, pyLong, it->second) != 0) {
             return NULL;
             }
 
@@ -1159,10 +1181,10 @@ PyObjectWalker::_getDataMemberNames(PyObject* pyObject, PyObject* classObject) c
         PyObject* keys = PyDict_Keys(__dict__attr);
         Py_DECREF(__dict__attr);
         if (keys == NULL) {
-            PyErr_Print();
-            throw std::logic_error("couldn't get keys on a dict");
+            return NULL;
             }
         if (not PyList_Check(keys)) {
+            Py_DECREF(keys);
             throw std::logic_error("expected keys to be a list");
             }
 
