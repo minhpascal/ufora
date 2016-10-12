@@ -14,6 +14,8 @@
    limitations under the License.
 ****************************************************************************/
 #include "PyAstUtil.hpp"
+
+#include "CantGetSourceTextError.hpp"
 #include "PyObjectUtils.hpp"
 
 #include <iostream>
@@ -137,10 +139,7 @@ PyAstUtil::sourceFilenameAndText(const PyObject* pyObject)
         NULL
         );
     if (res == NULL) {
-        throw std::logic_error(
-            "an error occurred calling getSourceFilenameAndText. " + 
-            PyObjectUtils::exc_string()
-            );
+        throw CantGetSourceTextError(PyObjectUtils::exc_string());
         }
     if (not PyTuple_Check(res)) {
         throw std::logic_error(
