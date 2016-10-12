@@ -15,6 +15,7 @@
 ****************************************************************************/
 #include "PyObjectUtils.hpp"
 
+#include <sstream>
 #include <stdexcept>
 
 
@@ -109,6 +110,67 @@ std::string PyObjectUtils::format_exc()
     Py_DECREF(traceback_module);
 
     return tr;
+    }
+
+
+std::string PyObjectUtils::exc_string()
+    {
+    PyObject * exception, * v, * tb;
+
+    PyErr_Fetch(&exception, &v, &tb);
+    if (exception == NULL) {
+        return "<no exception>";
+        }
+    PyErr_NormalizeException(&exception, &v, &tb);
+    if (exception == NULL) {
+        return "<no exception>";
+        }
+
+    PyObject* typeString = PyObject_Str(exception);
+    if (typeString == NULL) {
+        Py_DECREF(exception);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+        return "<INTERNAL ERROR: couldn't get typeString>";
+        }
+    if (not PyString_Check(typeString)) {
+        Py_DECREF(typeString);
+        Py_DECREF(exception);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+        return "<INTERNAL ERROR: str(exception) didn't return a string!>";
+        }
+
+    PyObject* valueString = PyObject_Str(v);
+    if (v == NULL) {
+        Py_DECREF(typeString);
+        Py_DECREF(exception);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+        return "<INTERNAL ERROR: couldn't get value string>";
+        }
+    if (not PyString_Check(valueString)) {
+        Py_DECREF(valueString);
+        Py_DECREF(typeString);
+        Py_DECREF(exception);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+        return "<INTERNAL ERROR: str(v) didn't return a string!>";
+        }
+
+    std::ostringstream oss;
+
+    oss.write(PyString_AS_STRING(typeString), PyString_GET_SIZE(typeString));
+    oss << ": ";
+    oss.write(PyString_AS_STRING(valueString), PyString_GET_SIZE(valueString));
+
+    Py_DECREF(valueString);
+    Py_DECREF(typeString);
+    Py_DECREF(exception);
+    Py_DECREF(v);
+    Py_DECREF(tb);
+
+    return oss.str();
     }
 
 

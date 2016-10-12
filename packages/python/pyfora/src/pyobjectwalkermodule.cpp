@@ -128,8 +128,20 @@ PyObjectWalkerStruct_walkPyObject(PyObjectWalkerStruct* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "O", &objToWalk)) {
         return NULL;
         }
-    
-    return PyInt_FromLong(self->nativePyObjectWalker->walkPyObject(objToWalk));
+
+    long res;
+    try {
+        res = self->nativePyObjectWalker->walkPyObject(objToWalk);
+        }
+    catch(std::exception& e) {
+        PyErr_SetString(
+            PyExc_Exception,
+            e.what()
+            );
+        return NULL;
+        }
+
+    return PyInt_FromLong(res);
     }
 
 

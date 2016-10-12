@@ -137,9 +137,9 @@ PyAstUtil::sourceFilenameAndText(const PyObject* pyObject)
         NULL
         );
     if (res == NULL) {
-        PyErr_Print();
         throw std::logic_error(
-            "an error occurred calling getSourceFilenameAndText. "
+            "an error occurred calling getSourceFilenameAndText. " + 
+            PyObjectUtils::exc_string()
             );
         }
     if (not PyTuple_Check(res)) {

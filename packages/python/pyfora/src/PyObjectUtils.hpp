@@ -30,6 +30,8 @@ public:
 
     static std::string format_exc();
 
+    static std::string exc_string();
+
     static long builtin_id(PyObject*);
 
     static bool in(PyObject* container, PyObject* value);
