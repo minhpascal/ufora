@@ -47,17 +47,17 @@ private:
     int64_t _allocateId(PyObject* pyObject);
     void _walkPyObject(PyObject* pyObject, int64_t objectId);
     
-    void _registerUnconvertible(int64_t objectId, const PyObject* PyObject);
-    void _registerRemotePythonObject(int64_t objectId, PyObject* pyObject);
-    void _registerPackedHomogenousData(int64_t objectId, PyObject* pyObject);
+    void _registerUnconvertible(int64_t objectId, const PyObject* PyObject) const;
+    void _registerRemotePythonObject(int64_t objectId, PyObject* pyObject) const;
+    void _registerPackedHomogenousData(int64_t objectId, PyObject* pyObject) const;
     void _registerFuture(int64_t objectId, PyObject* pyObject);
     void _registerBuiltinExceptionInstance(int64_t objectId, PyObject* pyException);
     void _registerTypeOrBuiltinFunctionNamedSingleton(int64_t objectId,
-                                                      PyObject* pyObject);
+                                                      PyObject* pyObject) const;
     void _registerWithBlock(int64_t objectId, PyObject* pyObject);
     void _registerTuple(int64_t objectId, PyObject* pyTuple);
     void _registerList(int64_t objectId, PyObject* pyList);
-    void _registerListOfPrimitives(int64_t objectId, PyObject* pyList);
+    void _registerListOfPrimitives(int64_t objectId, PyObject* pyList) const;
     void _registerListGeneric(int64_t objectId, const PyObject* pyList);
     void _registerDict(int64_t objectId, PyObject* pyObject);
     void _registerFunction(int64_t objectId, PyObject* pyFunction);

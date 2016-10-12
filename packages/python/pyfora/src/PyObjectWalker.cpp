@@ -547,21 +547,21 @@ bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject) const
 
 
 void PyObjectWalker::_registerUnconvertible(int64_t objectId,
-                                            const PyObject* modulePathOrNone)
+                                            const PyObject* modulePathOrNone) const
     {
     mObjectRegistry.defineUnconvertible(objectId, modulePathOrNone);
     }
 
 
 void PyObjectWalker::_registerRemotePythonObject(int64_t objectId,
-                                                 PyObject* pyObject)
+                                                 PyObject* pyObject) const
     {
     throw std::runtime_error("_registerRemotePythonObject: not implemented");
     }
 
 
 void PyObjectWalker::_registerPackedHomogenousData(int64_t objectId,
-                                                   PyObject* pyObject)
+                                                   PyObject* pyObject) const
     {
     mObjectRegistry.definePackedHomogenousData(objectId, pyObject);
     }
@@ -692,7 +692,7 @@ PyObject* PyObjectWalker::_getModulePathForObject(const PyObject* pyObject) cons
 
 
 void PyObjectWalker::_registerTypeOrBuiltinFunctionNamedSingleton(int64_t objectId,
-                                                                  PyObject* pyObject)
+                                                                  PyObject* pyObject) const
     {
     std::map<PyObject*, std::string>::const_iterator it =
         mPythonSingletonToName.find(pyObject);
@@ -935,7 +935,7 @@ void PyObjectWalker::_registerList(int64_t objectId, PyObject* pyList)
     }
 
 
-void PyObjectWalker::_registerListOfPrimitives(int64_t objectId, PyObject* pyList)
+void PyObjectWalker::_registerListOfPrimitives(int64_t objectId, PyObject* pyList) const
     {
     mObjectRegistry.definePrimitive(objectId, pyList);
     }
