@@ -181,15 +181,12 @@ long PyAstUtil::startingSourceLine(const PyObject* pyObject)
         NULL
         );
     if (res == NULL) {
-        PyErr_Print();
-        throw std::logic_error(
-            "an error occurred calling getSourceLines"
-            );
+        throw CantGetSourceTextError(PyObjectUtils::exc_string());
         }
 
     if (not PyTuple_Check(res)) {
         throw std::logic_error(
-            "expected a tuple in calling getSourceLines"
+            "expected a tuple in calling getSourceLines: expected a tuple"
             );
         }
     if (PyTuple_GET_SIZE(res) != 2) {
@@ -355,7 +352,9 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
 
     PyObject* res = PyObject_CallFunctionObjArgs(
         collectDataMembersSetInInitFun,
-        pyObject);
+        pyObject,
+        NULL
+        );
 
     Py_DECREF(collectDataMembersSetInInitFun);
 

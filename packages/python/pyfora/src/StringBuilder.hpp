@@ -15,6 +15,8 @@
 ****************************************************************************/
 #pragma once
 
+#include <Python.h>
+
 #include <stdint.h>
 #include <sstream>
 #include <string>
@@ -37,6 +39,7 @@ public:
     void addStrings(const std::vector<std::string>& strings);
     void addStringTuple(const std::string& s);
     void addStringTuple(const char* s, uint64_t byteCount);
+    void addStringTuple(const PyObject* tupOfStrings);
 
     std::string str() const  {
         return mStream.str();

@@ -16,6 +16,7 @@
 #include "PyObjectWalker.hpp"
 
 #include "Ast.hpp"
+#include "CantGetSourceTextError.hpp"
 #include "ClassOrFunctionInfo.hpp"
 #include "FileDescription.hpp"
 #include "FreeVariableResolver.hpp"
@@ -43,6 +44,7 @@ PyObjectWalker::PyObjectWalker(
             mExcludeList(excludeList),
             mTerminalValueFilter(terminalValueFilter),
             mWithBlockClass(NULL),
+            mGetPathToObjectFun(NULL),
             mObjectRegistry(objectRegistry),
             mFreeVariableResolver(excludeList, terminalValueFilter)
     {
@@ -56,6 +58,7 @@ PyObjectWalker::PyObjectWalker(
     _initPackedHomogenousDataClass();
     _initFutureClass();
     _initWithBlockClass();
+    _initGetPathToObjectFun();
     }
 
 
@@ -189,6 +192,62 @@ void PyObjectWalker::_initPythonSingletonToName()
     }
 
 
+void PyObjectWalker::_initGetPathToObjectFun()
+    {
+    PyObject* moduleLevelObjectIndexModule = PyObject_GetAttrString(
+        mPyforaModule,
+        "ModuleLevelObjectIndex"
+        );
+    if (moduleLevelObjectIndexModule == NULL) {
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
+
+    PyObject* moduleLevelObjectIndexClass = PyObject_GetAttrString(
+        moduleLevelObjectIndexModule,
+        "ModuleLevelObjectIndex"
+        );
+    if (moduleLevelObjectIndexClass == NULL) {
+        Py_DECREF(moduleLevelObjectIndexModule);
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
+
+    PyObject* singletonFunc = PyObject_GetAttrString(
+        moduleLevelObjectIndexClass,
+        "singleton"
+        );
+    if (singletonFunc == NULL) {
+        Py_DECREF(moduleLevelObjectIndexClass);
+        Py_DECREF(moduleLevelObjectIndexModule);
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
+
+    PyObject* singleton = PyObject_CallFunctionObjArgs(
+        singletonFunc,
+        NULL
+        );
+    if (singleton == NULL) {
+        Py_DECREF(singletonFunc);
+        Py_DECREF(moduleLevelObjectIndexClass);
+        Py_DECREF(moduleLevelObjectIndexModule);
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
+
+    mGetPathToObjectFun = PyObject_GetAttrString(
+        singleton,
+        "getPathToObject"
+        );
+
+    Py_DECREF(singleton);
+    Py_DECREF(singletonFunc);
+    Py_DECREF(moduleLevelObjectIndexClass);
+    Py_DECREF(moduleLevelObjectIndexModule);
+
+    if (mGetPathToObjectFun == NULL) {
+        throw std::logic_error(PyObjectUtils::exc_string());
+        }
+    }
+
+
 PyObjectWalker::~PyObjectWalker()
     {
     for (std::map<long, PyObject*>::const_iterator it =
@@ -209,6 +268,7 @@ PyObjectWalker::~PyObjectWalker()
          ++it) {
         Py_DECREF(it->first);
         }
+    Py_XDECREF(mGetPathToObjectFun);
     Py_XDECREF(mWithBlockClass);
     Py_XDECREF(mTerminalValueFilter);
     Py_XDECREF(mExcludeList);
@@ -264,8 +324,18 @@ int64_t PyObjectWalker::walkPyObject(PyObject* pyObject)
 
     // TODO there's some exception logic in the py version which
     // we're not replicating here
-
-    _walkPyObject(pyObject, objectId);
+    
+    try {
+        _walkPyObject(pyObject, objectId);
+        }
+    catch (CantGetSourceTextError& e) {
+        PyObject* modulePathOrNone = _getModulePathForObject(pyObject);
+        if (modulePathOrNone == NULL) {
+            throw std::logic_error("error getting modulePathOrNone");
+            }
+        _registerUnconvertible(objectId, modulePathOrNone);
+        Py_DECREF(modulePathOrNone);
+        }
 
     if (wasReplaced) {
         Py_DECREF(pyObject);
@@ -315,9 +385,9 @@ bool PyObjectWalker::_canMap(PyObject* pyObject) const
     Py_DECREF(pyString);
 
     if (res == NULL) {
-        PyErr_Print();
         throw std::logic_error(
-            "an error occurred trying to call purePythonClassMapping.canMap"
+            "an error occurred trying to call purePythonClassMapping.canMap: " +
+            PyObjectUtils::exc_string()
             );
         }
 
@@ -476,6 +546,13 @@ bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject) const
     }
 
 
+void PyObjectWalker::_registerUnconvertible(int64_t objectId,
+                                            const PyObject* modulePathOrNone)
+    {
+    mObjectRegistry.defineUnconvertible(objectId, modulePathOrNone);
+    }
+
+
 void PyObjectWalker::_registerRemotePythonObject(int64_t objectId,
                                                  PyObject* pyObject)
     {
@@ -602,6 +679,15 @@ std::string PyObjectWalker::_fileText(const std::string& filename) const
     Py_DECREF(fileNamePyObj);
 
     return tr;
+    }
+
+
+PyObject* PyObjectWalker::_getModulePathForObject(const PyObject* pyObject) const
+    {
+    return PyObject_CallFunctionObjArgs(
+        mGetPathToObjectFun,
+        pyObject,
+        NULL);
     }
 
 
@@ -1119,9 +1205,20 @@ void PyObjectWalker::_registerClassInstance(int64_t objectId, PyObject* pyObject
 
     int64_t classId = walkPyObject(classObject);
 
-    // Pure PyObjectWalker has a check for Unconvertibles here
+    if (mObjectRegistry.isUnconvertible(classId)) {
+        mObjectRegistry.defineUnconvertible(objectId,
+            _getModulePathForObject(pyObject)
+            );
+        return;
+        }
 
     PyObject* dataMemberNames = _getDataMemberNames(pyObject, classObject);
+    if (dataMemberNames == NULL) {
+        Py_DECREF(classObject);
+        throw std::logic_error("error in _registerClassInstance:" +
+            PyObjectUtils::exc_string()
+            );
+        }
 
     Py_DECREF(classObject);
 

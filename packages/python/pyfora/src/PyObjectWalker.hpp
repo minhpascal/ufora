@@ -47,6 +47,7 @@ private:
     int64_t _allocateId(PyObject* pyObject);
     void _walkPyObject(PyObject* pyObject, int64_t objectId);
     
+    void _registerUnconvertible(int64_t objectId, const PyObject* PyObject);
     void _registerRemotePythonObject(int64_t objectId, PyObject* pyObject);
     void _registerPackedHomogenousData(int64_t objectId, PyObject* pyObject);
     void _registerFuture(int64_t objectId, PyObject* pyObject);
@@ -112,6 +113,8 @@ private:
     std::string _fileText(const std::string& filename) const;
     std::string _fileText(const PyObject* filename) const;
 
+    PyObject* _getModulePathForObject(const PyObject* pyObject) const;
+
     // init functions called from ctor
     void _initPyforaModule();
     void _initPythonSingletonToName();
@@ -119,6 +122,7 @@ private:
     void _initPackedHomogenousDataClass();
     void _initFutureClass();
     void _initWithBlockClass();
+    void _initGetPathToObjectFun();
 
     static bool _isPrimitive(const PyObject* pyObject);
     static bool _allPrimitives(const PyObject* pyList);
@@ -132,6 +136,7 @@ private:
     PyObject* mExcludeList;
     PyObject* mTerminalValueFilter;
     PyObject* mWithBlockClass;
+    PyObject* mGetPathToObjectFun;
     std::map<long, PyObject*> mConvertedObjectCache;
     std::map<PyObject*, int64_t> mPyObjectToObjectId;
     std::map<PyObject*, std::string> mPythonSingletonToName;

@@ -191,7 +191,7 @@ void BinaryObjectRegistry::defineNamedSingleton(
 
 void BinaryObjectRegistry::defineUnconvertible(
         int64_t objectId,
-        PyObject* modulePathOrNone)
+        const PyObject* modulePathOrNone)
     {
     mStringBuilder.addInt64(objectId);
     mStringBuilder.addByte(CODE_UNCONVERTIBLE);
@@ -200,17 +200,8 @@ void BinaryObjectRegistry::defineUnconvertible(
         mStringBuilder.addByte(0);
         }
     else {
-        if (not PyString_Check(modulePathOrNone)) {
-            throw std::logic_error(
-                "modulePathOrNone should be None or a string"
-                );
-            }
-
-        char* str = PyString_AS_STRING(modulePathOrNone);
-        Py_ssize_t length = PyString_GET_SIZE(modulePathOrNone);
-
         mStringBuilder.addByte(1);
-        mStringBuilder.addStringTuple(std::string(str, length));
+        mStringBuilder.addStringTuple(modulePathOrNone);
         mUnconvertibleIndices.insert(objectId);
         }
     }

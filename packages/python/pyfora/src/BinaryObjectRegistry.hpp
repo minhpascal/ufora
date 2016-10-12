@@ -113,7 +113,7 @@ public:
         const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId,
         const std::vector<int64_t> baseClassIds
         );
-    void defineUnconvertible(int64_t objectId, PyObject* modulePathOrNone);
+    void defineUnconvertible(int64_t objectId, const PyObject* modulePathOrNone);
     void defineClassInstance(
         int64_t objectId,
         int64_t classId,
@@ -133,6 +133,10 @@ public:
 
     void definePackedHomogenousData(int64_t objectId,
                                     PyObject* val);
+
+    bool isUnconvertible(int64_t classId) {
+        return mUnconvertibleIndices.find(classId) != mUnconvertibleIndices.end();
+        }
 
 private:
     StringBuilder mStringBuilder;
