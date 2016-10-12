@@ -41,6 +41,7 @@ def getUnresolvedFreeVariableExceptionWithTrace(e, sourceFileName):
     chainWithPos = e.freeVarChainWithPos
     varLine = chainWithPos.pos.lineno
     varName = chainWithPos.var[0]
+
     return UnresolvedFreeVariableExceptionWithTrace(
         '''unable to resolve free variable '%s' for pyfora conversion''' % varName,
         [Exceptions.makeTraceElement(sourceFileName, varLine)]

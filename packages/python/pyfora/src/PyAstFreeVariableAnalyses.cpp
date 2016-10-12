@@ -131,13 +131,6 @@ PyObject* PyAstFreeVariableAnalyses::getFreeMemberAccessChainsWithPositions(
         _getInstance().mGetFreeVariableMemberAccessChainsFun,
         argsTuple,
         kwds);
-    if (res == NULL) {
-        Py_DECREF(argsTuple);
-        Py_DECREF(kwds);
-        Py_DECREF(pyGetPositions);
-        Py_DECREF(pyIsClassContext);
-        return NULL;
-        }
 
     Py_DECREF(argsTuple);
     Py_DECREF(kwds);

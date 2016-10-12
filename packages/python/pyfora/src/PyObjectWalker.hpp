@@ -115,6 +115,10 @@ private:
 
     std::string _getWithBlockSourceFileName(PyObject* pyforaWithBlock) const;
 
+    /*
+      Returns a valid PyObject, either None or a String,
+      or throws a std::runtime_error
+     */
     PyObject* _getModulePathForObject(const PyObject* pyObject) const;
 
     // init functions called from ctor
@@ -125,6 +129,8 @@ private:
     void _initFutureClass();
     void _initWithBlockClass();
     void _initGetPathToObjectFun();
+    void _initUnconvertibleClass();
+    void _initPyforaConnectHack();
 
     static bool _isPrimitive(const PyObject* pyObject);
     static bool _allPrimitives(const PyObject* pyList);
@@ -139,6 +145,8 @@ private:
     PyObject* mTerminalValueFilter;
     PyObject* mWithBlockClass;
     PyObject* mGetPathToObjectFun;
+    PyObject* mUnconvertibleClass;
+    PyObject* mPyforaConnectHack;
 
     std::map<long, PyObject*> mConvertedObjectCache;
     std::map<PyObject*, int64_t> mPyObjectToObjectId;

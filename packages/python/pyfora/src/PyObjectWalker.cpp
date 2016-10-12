@@ -24,6 +24,7 @@
 #include "PyAstUtil.hpp"
 #include "PyAstFreeVariableAnalyses.hpp"
 #include "PyforaInspect.hpp"
+#include "PyforaInspectError.hpp"
 #include "PyObjectUtils.hpp"
 #include "PythonToForaConversionError.hpp"
 #include "UnresolvedFreeVariableExceptions.hpp"
@@ -49,6 +50,8 @@ PyObjectWalker::PyObjectWalker(
             mTerminalValueFilter(terminalValueFilter),
             mWithBlockClass(NULL),
             mGetPathToObjectFun(NULL),
+            mUnconvertibleClass(NULL),
+            mPyforaConnectHack(NULL),
             mObjectRegistry(objectRegistry),
             mFreeVariableResolver(excludeList, terminalValueFilter)
     {
@@ -63,6 +66,8 @@ PyObjectWalker::PyObjectWalker(
     _initFutureClass();
     _initWithBlockClass();
     _initGetPathToObjectFun();
+    _initUnconvertibleClass();
+    _initPyforaConnectHack();
     }
 
 
@@ -252,6 +257,39 @@ void PyObjectWalker::_initGetPathToObjectFun()
     }
 
 
+void PyObjectWalker::_initUnconvertibleClass() {
+    PyObject* unconvertibleModule = PyObject_GetAttrString(
+        mPyforaModule,
+        "Unconvertible"
+        );
+    if (unconvertibleModule == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+
+    mUnconvertibleClass = PyObject_GetAttrString(
+        unconvertibleModule,
+        "Unconvertible"
+        );
+
+    Py_DECREF(unconvertibleModule);
+
+    if (mUnconvertibleClass == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+    }
+
+
+void PyObjectWalker::_initPyforaConnectHack() {
+    mPyforaConnectHack = PyObject_GetAttrString(
+        mPyforaModule,
+        "connect"
+        );
+    if (mPyforaConnectHack == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+    }
+
+
 PyObjectWalker::~PyObjectWalker()
     {
     for (std::map<long, PyObject*>::const_iterator it =
@@ -272,6 +310,7 @@ PyObjectWalker::~PyObjectWalker()
          ++it) {
         Py_DECREF(it->first);
         }
+    Py_XDECREF(mUnconvertibleClass);
     Py_XDECREF(mGetPathToObjectFun);
     Py_XDECREF(mWithBlockClass);
     Py_XDECREF(mTerminalValueFilter);
@@ -326,19 +365,19 @@ int64_t PyObjectWalker::walkPyObject(PyObject* pyObject)
 
     int64_t objectId = _allocateId(pyObject);
 
-    // TODO there's some exception logic in the py version which
-    // we're not replicating here
+    if (pyObject == mPyforaConnectHack) {
+        _registerUnconvertible(objectId, Py_None);
+        return objectId;
+        }
     
     try {
         _walkPyObject(pyObject, objectId);
         }
-    catch (CantGetSourceTextError& e) {
-        PyObject* modulePathOrNone = _getModulePathForObject(pyObject);
-        if (modulePathOrNone == NULL) {
-            throw std::runtime_error("error getting modulePathOrNone");
-            }
-        _registerUnconvertible(objectId, modulePathOrNone);
-        Py_DECREF(modulePathOrNone);
+    catch (const CantGetSourceTextError& e) {
+        _registerUnconvertible(objectId, pyObject);
+        }
+    catch (const PyforaInspectError& e) {
+        _registerUnconvertible(objectId, pyObject);
         }
 
     if (wasReplaced) {
@@ -441,7 +480,6 @@ PyObject* PyObjectWalker::_pureInstanceReplacement(PyObject* pyObject)
 void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
     /* Missing:
 
-       _Unconvertible
        traceback_type (who hits this?)
     */
     if (PyObject_IsInstance(pyObject, mRemotePythonObjectClass))
@@ -468,6 +506,23 @@ void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
     else if (PyObject_IsInstance(pyObject, mWithBlockClass))
         {
         _registerWithBlock(objectId, pyObject);
+        }
+    else if (PyObject_IsInstance(pyObject, mUnconvertibleClass))
+        {
+        PyObject* objectThatsNotConvertible = PyObject_GetAttrString(
+            pyObject,
+            "objectThatsNotConvertible"
+            );
+        if (objectThatsNotConvertible == NULL) {
+            throw std::runtime_error(
+                "expected Unconvertible instances to have an "
+                "`objectThatsNotConvertible` member"
+                );
+            }
+
+        _registerUnconvertible(objectId, objectThatsNotConvertible);
+
+        Py_DECREF(objectThatsNotConvertible);
         }
     else if (PyTuple_Check(pyObject))
         {
@@ -551,9 +606,16 @@ bool PyObjectWalker::_classIsNamedSingleton(PyObject* pyObject) const
 
 
 void PyObjectWalker::_registerUnconvertible(int64_t objectId,
-                                            const PyObject* modulePathOrNone) const
+                                            const PyObject* pyObject) const
     {
+    PyObject* modulePathOrNone = _getModulePathForObject(pyObject);
+    if (modulePathOrNone == NULL) {
+        throw std::runtime_error("error getting modulePathOrNone");
+        }
+
     mObjectRegistry.defineUnconvertible(objectId, modulePathOrNone);
+
+    Py_DECREF(modulePathOrNone);
     }
 
 
@@ -611,7 +673,7 @@ void PyObjectWalker::_registerFuture(int64_t objectId, PyObject* pyObject)
         throw std::runtime_error(PyObjectUtils::exc_string());
         }
 
-    walkPyObject(res);
+    _walkPyObject(res, objectId);
 
     Py_DECREF(res);
     }
@@ -734,10 +796,15 @@ std::string PyObjectWalker::_fileText(const std::string& filename) const
 
 PyObject* PyObjectWalker::_getModulePathForObject(const PyObject* pyObject) const
     {
-    return PyObject_CallFunctionObjArgs(
+    PyObject* tr =PyObject_CallFunctionObjArgs(
         mGetPathToObjectFun,
         pyObject,
         NULL);
+    if (tr == NULL) {
+        throw std::runtime_error("hit an unexpected error calling getPathToObject: " +
+            PyObjectUtils::exc_string());
+        }
+    return tr;
     }
 
 
@@ -786,7 +853,7 @@ void _handleUnresolvedFreeVariableException(const std::string& filename)
 
     PyErr_Fetch(&exception, &v, &tb);
     if (exception == NULL) {
-        throw std::runtime_error("expected an UnresolvedFreeVariableException");
+        throw std::runtime_error("expected an Exception to be set.");
         }
 
     PyErr_NormalizeException(&exception, &v, &tb);
@@ -1243,15 +1310,13 @@ PyObject* PyObjectWalker::_computeAndResolveFreeVariableMemberAccessChainsInAst(
     {
     PyObject* chainsWithPositions = _freeMemberAccessChainsWithPositions(pyAst);
     if (chainsWithPositions == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error calling _freeMemberAccessChainsWithPositions");
+        return NULL;
         }
 
     PyObject* pyConvertedObjectCache = _getPyConvertedObjectCache();
     if (pyConvertedObjectCache == NULL) {
-        PyErr_Print();
         Py_DECREF(chainsWithPositions);
-        throw std::runtime_error("error getting convertedObjectCache");
+        return NULL;
         }
 
     PyObject* resolutions = 
@@ -1403,12 +1468,14 @@ PyObjectWalker::_getDataMemberNames(PyObject* pyObject, PyObject* classObject) c
     if (PyObject_HasAttrString(pyObject, "__dict__")) {
         PyObject* __dict__attr = PyObject_GetAttrString(pyObject, "__dict__");
         if (__dict__attr == NULL) {
-            PyErr_Print();
-            throw std::runtime_error("failed getting __dict__ attr");
+            return NULL;
             }
         if (not PyDict_Check(__dict__attr)) {
-            Py_DECREF(__dict__attr);
-            throw std::runtime_error("expected __dict__ attr to be a dict");
+            PyErr_SetString(
+                PyExc_TypeError,
+                "expected __dict__ attr to be a dict"
+                );
+            return NULL;
             }
         PyObject* keys = PyDict_Keys(__dict__attr);
         Py_DECREF(__dict__attr);
@@ -1416,8 +1483,11 @@ PyObjectWalker::_getDataMemberNames(PyObject* pyObject, PyObject* classObject) c
             return NULL;
             }
         if (not PyList_Check(keys)) {
-            Py_DECREF(keys);
-            throw std::runtime_error("expected keys to be a list");
+            PyErr_SetString(
+                PyExc_TypeError,
+                "expected keys to be a list"
+                );
+            return NULL;
             }
 
         return keys;

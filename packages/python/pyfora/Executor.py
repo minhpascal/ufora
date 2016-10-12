@@ -23,8 +23,8 @@ import pyfora.Future as Future
 import pyfora.Exceptions as Exceptions
 import pyfora.RemotePythonObject as RemotePythonObject
 import pyfora.PythonObjectRehydrator as PythonObjectRehydrator
-import pyfora.BinaryObjectRegistry as BinaryObjectRegistry
-import pyfora.PyObjectWalker as PyObjectWalker
+import pyfora.binaryobjectregistry as BinaryObjectRegistry
+import pyfora.pyobjectwalker as PyObjectWalker
 from pyfora.UnresolvedFreeVariableExceptions import UnresolvedFreeVariableExceptionWithTrace
 import pyfora.WithBlockExecutor as WithBlockExecutor
 import pyfora.PyObjectWalkerDefaults as PyObjectWalkerDefaults

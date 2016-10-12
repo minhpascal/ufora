@@ -64,6 +64,8 @@ private:
     // it MUST be a non-null PyString
     static PyObject* _pyAstFromText(const PyObject* pyString);
 
+    static void _translateError();
+
     PyObject* mPyAstUtilModule;
     PyObject* mGetSourceFilenameAndTextFun;
     PyObject* mGetSourceLinesFun;

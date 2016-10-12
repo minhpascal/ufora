@@ -81,18 +81,14 @@ UnresolvedFreeVariableExceptions::UnresolvedFreeVariableExceptions() :
 PyObject*
 UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionWithTraceClass()
     {
-    PyObject* tr = _getInstance().mUnresolvedFreeVariableExceptionWithTraceClass;
-    Py_INCREF(tr);
-    return tr;
+    return _getInstance().mUnresolvedFreeVariableExceptionWithTraceClass;
     }
 
 
 PyObject*
 UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionClass()
     {
-    PyObject* tr = _getInstance().mUnresolvedFreeVariableExceptionClass;
-    Py_INCREF(tr);
-    return tr;
+    return _getInstance().mUnresolvedFreeVariableExceptionClass;
     }
 
 
@@ -111,7 +107,7 @@ UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionWithTrace(
         }
     
     PyObject* res = PyObject_CallFunctionObjArgs(
-        _getInstance().mUnresolvedFreeVariableExceptionWithTraceClass,
+        _getInstance().mGetUnresolvedFreeVariableExceptionWithTraceFun,
         unresolvedFreeVariableException,
         pyFilename,
         NULL

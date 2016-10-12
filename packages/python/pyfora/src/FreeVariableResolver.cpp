@@ -91,10 +91,7 @@ PyObject* FreeVariableResolver::resolveFreeVariableMemberAccessChainsInAst(
         PyObject_GetAttrString(mPureFreeVariableResolver,
                                "resolveFreeVariableMemberAccessChainsInAst");
     if (resolveFreeVariableMemberAccessChainsInAstFun == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("couldn't get "
-            "resolveFreeVariableMemberAccessChainsInAst"
-            " member on a FreeVariableResolver");
+        return NULL;
         }
     
     PyObject* res = PyObject_CallFunctionObjArgs(

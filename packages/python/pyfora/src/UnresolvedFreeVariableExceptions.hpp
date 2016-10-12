@@ -22,9 +22,12 @@
 
 class UnresolvedFreeVariableExceptions {
 public:
+    // returns a borrowed reference
     static PyObject* getUnresolvedFreeVariableExceptionWithTraceClass();
+    // returns a borrowed reference
     static PyObject* getUnresolvedFreeVariableExceptionClass();
 
+    // returns a new reference
     static PyObject* getUnresolvedFreeVariableExceptionWithTrace(
         const PyObject* unresolvedFreeVariableException,
         const std::string& filename

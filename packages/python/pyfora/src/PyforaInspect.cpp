@@ -25,7 +25,8 @@ PyforaInspect::PyforaInspect() :
         mModuleType(NULL),
         mPyforaModule(NULL),
         mPyforaInspectModule(NULL),
-        mGetLinesFunc(NULL)
+        mGetLinesFunc(NULL),
+        mPyforaInspectErrorClass(NULL)
     {
     _initMembers();
     }
@@ -88,6 +89,17 @@ void PyforaInspect::_initMembers()
         PyErr_Print();
         throw std::runtime_error("couldn't find `getlines` func in pyfora.PyforaInspect");
         }
+
+    mPyforaInspectErrorClass = PyObject_GetAttrString(
+        mPyforaInspectModule,
+        "PyforaInspectError"
+        );
+
+    if (mPyforaInspectErrorClass == NULL) {
+        throw std::runtime_error(
+            "couldn't get PyforaInspectError class"
+            );
+        }
     }
 
 
@@ -119,4 +131,9 @@ bool PyforaInspect::ismodule(PyObject* pyObject)
 PyObject* PyforaInspect::getlines(const PyObject* obj)
     {
     return PyObject_CallFunctionObjArgs(_getInstance().mGetLinesFunc, obj, NULL);
+    }
+
+
+PyObject* PyforaInspect::getPyforaInspectErrorClass() {
+    return _getInstance().mPyforaInspectErrorClass;
     }

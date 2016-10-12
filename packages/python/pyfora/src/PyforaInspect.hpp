@@ -27,6 +27,9 @@ public:
 
     static PyObject* getlines(const PyObject*);
 
+    // returns a borrowed reference
+    static PyObject* getPyforaInspectErrorClass();
+
 private:
     static PyforaInspect& _getInstance() {
         static PyforaInspect instance;
@@ -49,4 +52,5 @@ private:
     PyObject* mPyforaModule;
     PyObject* mPyforaInspectModule;
     PyObject* mGetLinesFunc;
+    PyObject* mPyforaInspectErrorClass;
 };

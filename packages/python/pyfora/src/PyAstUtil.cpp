@@ -16,6 +16,8 @@
 #include "PyAstUtil.hpp"
 
 #include "CantGetSourceTextError.hpp"
+#include "PyforaInspect.hpp"
+#include "PyforaInspectError.hpp"
 #include "PyObjectUtils.hpp"
 
 #include <iostream>
@@ -262,8 +264,7 @@ PyAstUtil::functionDefOrLambdaAtLineNumber(const PyObject* pyObject,
     {
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
     if (pySourceLine == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error creating a python int out of a C++ long");
+        return NULL;
         }
 
     PyObject* tr = PyObject_CallFunctionObjArgs(
@@ -272,11 +273,6 @@ PyAstUtil::functionDefOrLambdaAtLineNumber(const PyObject* pyObject,
         pySourceLine,
         NULL
         );
-
-    if (tr == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error calling functionDefOrLambdaAtLineNumber");
-        }
 
     Py_DECREF(pySourceLine);
 
@@ -290,8 +286,7 @@ PyAstUtil::classDefAtLineNumber(const PyObject* pyObject,
     {
     PyObject* pySourceLine = PyInt_FromLong(sourceLine);
     if (pySourceLine == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error creating a python int out of a C++ long");
+        return NULL;
         }
 
     PyObject* tr = PyObject_CallFunctionObjArgs(
@@ -300,11 +295,6 @@ PyAstUtil::classDefAtLineNumber(const PyObject* pyObject,
         pySourceLine,
         NULL
         );
-
-    if (tr == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error calling classDefAtLineNumber");
-        }
 
     Py_DECREF(pySourceLine);
 
@@ -346,8 +336,7 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
         _getInstance().mPyAstUtilModule,
         "collectDataMembersSetInInit");
     if (collectDataMembersSetInInitFun == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("couldn't get collectDataMembersSetInInit function");
+        return NULL;
         }
 
     PyObject* res = PyObject_CallFunctionObjArgs(
@@ -358,7 +347,42 @@ PyObject* PyAstUtil::collectDataMembersSetInInit(PyObject* pyObject)
 
     Py_DECREF(collectDataMembersSetInInitFun);
 
+    if (res == NULL) {
+        _translateError();
+        }
+
     return res;
+    }
+
+
+void PyAstUtil::_translateError() {
+    PyObject * e, * v, * tb;
+
+    PyErr_Fetch(&e, &v, &tb);
+    if (e == NULL) {
+        throw std::runtime_error(
+            "expected an exception to be set"
+            );
+        }
+
+    PyErr_NormalizeException(&e, &v, &tb);
+
+    if (PyObject_IsInstance(v,
+            PyforaInspect::getPyforaInspectErrorClass())) {
+        std::string message = PyObjectUtils::str_string(v);
+
+        Py_DECREF(e);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+
+        throw PyforaInspectError(message);
+        }
+    else {
+        PyErr_Restore(e, v, tb);
+        throw std::runtime_error(
+            PyObjectUtils::exc_string()
+            );
+        }
     }
 
 
