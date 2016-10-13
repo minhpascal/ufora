@@ -176,9 +176,9 @@ PyStringBuilder_addInt64s(PyStringBuilder* self, PyObject* args)
         Py_XDECREF(item);
         }
 
-    self->nativeStringBuilder->addInt64s(ints);
-
     Py_DECREF(iterator);
+
+    self->nativeStringBuilder->addInt64s(ints);
 
     if ((exc = PyErr_Occurred())) {
         PyErr_SetString(exc, "an error occurred");

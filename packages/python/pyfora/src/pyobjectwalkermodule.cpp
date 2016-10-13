@@ -74,11 +74,8 @@ PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
 static int
 PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* kwds)
     {
-    // check that arg[0] is a BinaryObjectRegistry
-
     PyObject* binaryObjectRegistryModule = 
         PyImport_ImportModule("pyfora.binaryobjectregistry");
-
     if (binaryObjectRegistryModule == NULL) {
         throw std::runtime_error("couldn't import pyfora.binaryobjectregistry");
         }
@@ -86,7 +83,9 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
     PyObject* binaryObjectRegistryClass = 
         PyObject_GetAttrString(binaryObjectRegistryModule,
                                "BinaryObjectRegistry");
-    
+
+    Py_DECREF(binaryObjectRegistryModule);
+
     if (binaryObjectRegistryClass == NULL) {
         throw std::runtime_error(
             "couldn't find pyfora.binaryobjectregistry.BinaryObjectRegistry"
@@ -99,9 +98,13 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
                           &self->binaryObjectRegistry,
                           &self->excludePredicateFun,
                           &self->excludeList,
-                          &self->terminalValueFilter)) {
+                          &self->terminalValueFilter))
+        {
+        Py_DECREF(binaryObjectRegistryClass);
         return -1;
         }
+
+    Py_DECREF(binaryObjectRegistryClass);
     
     Py_INCREF(self->purePythonClassMapping);
     Py_INCREF(self->binaryObjectRegistry);
