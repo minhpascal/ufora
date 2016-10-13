@@ -37,14 +37,18 @@ class UnresolvedFreeVariableExceptionWithTrace(Exception):
         self.trace.insert(0, elmt)
 
 
+def getUnresolvedFreeVariableExceptionWithTrace(e, sourceFileName):
+    chainWithPos = e.freeVarChainWithPos
+    varLine = chainWithPos.pos.lineno
+    varName = chainWithPos.var[0]
+    return UnresolvedFreeVariableExceptionWithTrace(
+        '''unable to resolve free variable '%s' for pyfora conversion''' % varName,
+        [Exceptions.makeTraceElement(sourceFileName, varLine)]
+        )
+
+
 def convertUnresolvedFreeVariableExceptionAndRaise(e, sourceFileName):
     logging.error(
         "Converter raised an UnresolvedFreeVariableException exception: %s",
         traceback.format_exc())
-    chainWithPos = e.freeVarChainWithPos
-    varLine = chainWithPos.pos.lineno
-    varName = chainWithPos.var[0]
-    raise UnresolvedFreeVariableExceptionWithTrace(
-        '''unable to resolve free variable '%s' for pyfora conversion''' % varName,
-        [Exceptions.makeTraceElement(sourceFileName, varLine)]
-        )
+    raise getUnresolvedFreeVariableExceptionWithTrace(e, sourceFileName)

@@ -22,6 +22,8 @@
 #include "PyBinaryObjectRegistry.hpp"
 #include "PyObjectWalker.hpp"
 #include "PythonToForaConversionError.hpp"
+#include "UnresolvedFreeVariableExceptions.hpp"
+#include "UnresolvedFreeVariableExceptionWithTrace.hpp"
 
 /*********************************
 Defining a Python C-extension for the C++ class PyObjectWalker,
@@ -154,6 +156,23 @@ void translateBadWithBlockError(const BadWithBlockError& e)
     Py_DECREF(badWithBlockErrorClass);
     }
 
+void translateUnresolvedFreeVariableExceptionWithTrace(
+        const UnresolvedFreeVariableExceptionWithTrace& e
+        )
+    {
+    PyObject* unresolvedFreeVariableExceptionWithTraceClass =
+        UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionWithTraceClass();
+    if (unresolvedFreeVariableExceptionWithTraceClass == NULL) {
+        return;
+        }
+
+    PyObject* value = e.value();
+    // value gets XINCREF'd in PyErr_SetObject
+    PyErr_SetObject(
+        unresolvedFreeVariableExceptionWithTraceClass,
+        value
+        );
+    }
 
 }
 
@@ -233,6 +252,10 @@ PyObjectWalkerStruct_walkPyObject(PyObjectWalkerStruct* self, PyObject* args)
         }
     catch (const BadWithBlockError& e) {
         translateBadWithBlockError(e);
+        return NULL;
+        }
+    catch (const UnresolvedFreeVariableExceptionWithTrace& e) {
+        translateUnresolvedFreeVariableExceptionWithTrace(e);
         return NULL;
         }
     catch (const std::exception& e) {

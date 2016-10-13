@@ -122,9 +122,6 @@ std::string PyObjectUtils::exc_string()
         return "<no exception>";
         }
     PyErr_NormalizeException(&exception, &v, &tb);
-    if (exception == NULL) {
-        return "<no exception>";
-        }
 
     PyObject* typeString = PyObject_Str(exception);
     if (typeString == NULL) {

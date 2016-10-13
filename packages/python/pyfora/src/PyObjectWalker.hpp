@@ -113,6 +113,8 @@ private:
     std::string _fileText(const std::string& filename) const;
     std::string _fileText(const PyObject* filename) const;
 
+    std::string _getWithBlockSourceFileName(PyObject* pyforaWithBlock) const;
+
     PyObject* _getModulePathForObject(const PyObject* pyObject) const;
 
     // init functions called from ctor
@@ -137,6 +139,7 @@ private:
     PyObject* mTerminalValueFilter;
     PyObject* mWithBlockClass;
     PyObject* mGetPathToObjectFun;
+
     std::map<long, PyObject*> mConvertedObjectCache;
     std::map<PyObject*, int64_t> mPyObjectToObjectId;
     std::map<PyObject*, std::string> mPythonSingletonToName;

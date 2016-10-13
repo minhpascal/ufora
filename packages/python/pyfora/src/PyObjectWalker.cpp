@@ -26,6 +26,8 @@
 #include "PyforaInspect.hpp"
 #include "PyObjectUtils.hpp"
 #include "PythonToForaConversionError.hpp"
+#include "UnresolvedFreeVariableExceptions.hpp"
+#include "UnresolvedFreeVariableExceptionWithTrace.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -668,6 +670,29 @@ std::string PyObjectWalker::_fileText(const PyObject* fileNamePyObj) const
     }
 
 
+std::string PyObjectWalker::_getWithBlockSourceFileName(
+        PyObject* pyforaWithBlock
+        ) const
+    {
+    PyObject* filename = PyObject_GetAttrString(pyforaWithBlock, "sourceFileName");
+    if (filename == NULL) {
+        PyErr_Print();
+        throw std::runtime_error(
+            "error getting sourceFileName attr in _registerWithBlock");
+        }
+    if (not PyString_Check(filename)) {
+        Py_DECREF(filename);
+        throw std::runtime_error("expected sourceFileName attr to be a string");
+        }
+
+    std::string tr = PyObjectUtils::std_string(filename);
+    
+    Py_DECREF(filename);
+
+    return tr;
+    }
+
+
 std::string PyObjectWalker::_fileText(const std::string& filename) const
     {
     PyObject* fileNamePyObj = PyString_FromStringAndSize(filename.data(),
@@ -729,6 +754,52 @@ int64_t _getWithBlockLineNumber(PyObject* withBlock)
 
     return lineno;
     }
+
+
+
+void _handleUnresolvedFreeVariableException(const std::string& filename)
+    {
+    PyObject * exception, * v, * tb;
+
+    PyErr_Fetch(&exception, &v, &tb);
+    if (exception == NULL) {
+        throw std::runtime_error("expected an UnresolvedFreeVariableException");
+        }
+
+    PyErr_NormalizeException(&exception, &v, &tb);
+
+    if (PyObject_IsInstance(
+            v,
+            UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionClass()))
+        {
+        PyObject* unresolvedFreeVariableExceptionWithTrace =
+            UnresolvedFreeVariableExceptions::getUnresolvedFreeVariableExceptionWithTrace(
+                v,
+                filename
+                );
+        if (unresolvedFreeVariableExceptionWithTrace == NULL) {
+            Py_DECREF(exception);
+            Py_DECREF(v);
+            Py_DECREF(tb);
+            throw std::runtime_error(PyObjectUtils::exc_string());
+            }
+        
+        throw UnresolvedFreeVariableExceptionWithTrace(
+            unresolvedFreeVariableExceptionWithTrace
+            );
+        }
+    else {
+        Py_DECREF(exception);
+        Py_DECREF(v);
+        Py_DECREF(tb);
+        throw std::runtime_error("expected an UnresolvedFreeVariableException");
+        }
+
+    Py_DECREF(exception);
+    Py_DECREF(v);
+    Py_DECREF(tb);
+    }
+
 
 }
 
@@ -794,6 +865,8 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
         throw std::runtime_error("error getting pyConvertedObjectCache");
         }
 
+    std::string filename = _getWithBlockSourceFileName(pyObject);
+
     PyObject* resolutions =
         mFreeVariableResolver.resolveFreeVariableMemberAccessChains(
             chainsWithPositions,
@@ -805,7 +878,7 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
     Py_DECREF(chainsWithPositions);
 
     if (resolutions == NULL) {
-        throw std::runtime_error(PyObjectUtils::exc_string());
+        _handleUnresolvedFreeVariableException(filename);
         }
 
     std::map<FreeVariableMemberAccessChain, int64_t> processedResolutions =
@@ -813,25 +886,12 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
 
     Py_DECREF(resolutions);
 
-    PyObject* filename = PyObject_GetAttrString(pyObject, "sourceFileName");
-    if (filename == NULL) {
-        PyErr_Print();
-        throw std::runtime_error(
-            "error getting sourceFileName attr in _registerWithBlock");
-        }
-    if (not PyString_Check(filename)) {
-        Py_DECREF(filename);
-        throw std::runtime_error("expected sourceFileName attr to be a string");
-        }
-
     int64_t sourceFileId = walkFileDescription(
         FileDescription::cachedFromArgs(
-            PyObjectUtils::std_string(filename),
+            filename,
             _fileText(filename)
             )
         );
-
-    Py_DECREF(filename);
 
     mObjectRegistry.defineWithBlock(
         objectId,
@@ -1074,7 +1134,7 @@ PyObjectWalker::_classOrFunctionInfo(PyObject* obj, bool isFunction)
     Py_DECREF(pyAst);
 
     if (resolutions == NULL) {
-        throw std::runtime_error(PyObjectUtils::exc_string());
+        _handleUnresolvedFreeVariableException(filenameAndText.first);
         }
 
     std::map<FreeVariableMemberAccessChain, int64_t> processedResolutions =
