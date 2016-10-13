@@ -29,9 +29,8 @@ from pyfora.PyforaInspect import PyforaInspectError
 from pyfora.Unconvertible import Unconvertible
 from pyfora.UnresolvedFreeVariableExceptions import UnresolvedFreeVariableException, \
     UnresolvedFreeVariableExceptionWithTrace, \
-    _convertUnresolvedFreeVariableExceptionAndRaise
+    convertUnresolvedFreeVariableExceptionAndRaise
 
-import __builtin__
 import ast
 import sys
 
@@ -478,7 +477,7 @@ class PyObjectWalker(object):
                     self._convertedObjectCache
                     )
         except UnresolvedFreeVariableException as e:
-            _convertUnresolvedFreeVariableExceptionAndRaise(e, pyObject.sourceFileName)
+            convertUnresolvedFreeVariableExceptionAndRaise(e, pyObject.sourceFileName)
 
         try:
             processedFreeVariableMemberAccessChainResolutions = {}
@@ -595,7 +594,7 @@ class PyObjectWalker(object):
                     pyObject, pyAst
                     )
         except UnresolvedFreeVariableException as e:
-            _convertUnresolvedFreeVariableExceptionAndRaise(e, sourceFileName)
+            convertUnresolvedFreeVariableExceptionAndRaise(e, sourceFileName)
 
         try:
             processedFreeVariableMemberAccessChainResolutions = {}

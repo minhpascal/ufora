@@ -37,7 +37,7 @@ class UnresolvedFreeVariableExceptionWithTrace(Exception):
         self.trace.insert(0, elmt)
 
 
-def _convertUnresolvedFreeVariableExceptionAndRaise(e, sourceFileName):
+def convertUnresolvedFreeVariableExceptionAndRaise(e, sourceFileName):
     logging.error(
         "Converter raised an UnresolvedFreeVariableException exception: %s",
         traceback.format_exc())
