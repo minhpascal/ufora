@@ -422,3 +422,123 @@ bool PyAstUtil::hasYieldInOuterScope(const PyObject* pyAst)
 
     return tr;    
     }
+
+
+long PyAstUtil::getYieldLocationsInOuterScope(const PyObject* pyAstNode)
+    {
+    PyObject* getYieldLocationsInOuterScopeFun = PyObject_GetAttrString(
+        _getInstance().mPyAstUtilModule,
+        "getYieldLocationsInOuterScope"
+        );
+    if (getYieldLocationsInOuterScopeFun == NULL) {
+        throw std::runtime_error(
+            "error getting getYieldLocationsInOuterScopeFun: " +
+            PyObjectUtils::exc_string()
+            );
+        }
+
+    PyObject* res = PyObject_CallFunctionObjArgs(
+        getYieldLocationsInOuterScopeFun,
+        pyAstNode,
+        NULL
+        );
+    
+    Py_DECREF(getYieldLocationsInOuterScopeFun);
+
+    if (res == NULL) {
+        throw std::runtime_error(
+            "error calling getYieldLocationsInOuterScopeFun: " +
+            PyObjectUtils::exc_string()
+            );
+        }
+    if (not PyList_Check(res)) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected return type of getYieldLocationsInOuterScope to be a list"
+            );
+        }
+    if (PyList_GET_SIZE(res) == 0) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected getYieldLocationsInOuterScope to return a list of length"
+            " at least one"
+            );
+        }
+
+    PyObject* item = PyList_GET_ITEM(res, 0);
+
+    if (not PyInt_Check(item)) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected elements in returned list from getYieldLocationsInOuterScope"
+            " to all be ints"
+            );            
+        }
+    
+    long tr = PyInt_AS_LONG(item);
+
+    // don't need to decref item -- it's a borrowed reference
+    Py_DECREF(res);
+
+    return tr;
+    }
+
+
+long PyAstUtil::getReturnLocationsInOuterScope(const PyObject* pyAstNode)
+    {
+    PyObject* getReturnLocationsInOuterScopeFun = PyObject_GetAttrString(
+        _getInstance().mPyAstUtilModule,
+        "getReturnLocationsInOuterScope"
+        );
+    if (getReturnLocationsInOuterScopeFun == NULL) {
+        throw std::runtime_error(
+            "error getting getReturnLocationsInOuterScopeFun: " +
+            PyObjectUtils::exc_string()
+            );
+        }
+
+    PyObject* res = PyObject_CallFunctionObjArgs(
+        getReturnLocationsInOuterScopeFun,
+        pyAstNode,
+        NULL
+        );
+    
+    Py_DECREF(getReturnLocationsInOuterScopeFun);
+
+    if (res == NULL) {
+        throw std::runtime_error(
+            "error calling getReturnLocationsInOuterScopeFun: " +
+            PyObjectUtils::exc_string()
+            );
+        }
+    if (not PyList_Check(res)) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected return type of getReturnLocationsInOuterScope to be a list"
+            );
+        }
+    if (PyList_GET_SIZE(res) == 0) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected getReturnLocationsInOuterScope to return a list of length"
+            " at least one"
+            );
+        }
+
+    PyObject* item = PyList_GET_ITEM(res, 0);
+
+    if (not PyInt_Check(item)) {
+        Py_DECREF(res);
+        throw std::runtime_error(
+            "expected elements in returned list from getReturnLocationsInOuterScope"
+            " to all be ints"
+            );            
+        }
+    
+    long tr = PyInt_AS_LONG(item);
+
+    // don't need to decref item -- it's a borrowed reference
+    Py_DECREF(res);
+
+    return tr;
+    }

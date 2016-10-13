@@ -37,6 +37,9 @@ public:
     static bool hasReturnInOuterScope(const PyObject* pyAst);
     static bool hasYieldInOuterScope(const PyObject* pyAst);
 
+    static long getYieldLocationsInOuterScope(const PyObject* pyAstNode);
+    static long getReturnLocationsInOuterScope(const PyObject* pyAstNode);
+
 private:
     // singleton instance
     static PyAstUtil& _getInstance() {

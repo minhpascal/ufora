@@ -18,6 +18,7 @@
 
 #include <stdexcept>
 
+#include "BadWithBlockError.hpp"
 #include "PyBinaryObjectRegistry.hpp"
 #include "PyObjectWalker.hpp"
 #include "PythonToForaConversionError.hpp"
@@ -36,7 +37,6 @@ typedef struct {
     PyObject* excludePredicateFun;
     PyObject* excludeList;
     PyObject* terminalValueFilter;
-    PyObject* pythonToForaConversionErrorClass;
     PyObjectWalker* nativePyObjectWalker;
 } PyObjectWalkerStruct;
 
@@ -54,7 +54,6 @@ PyObjectWalkerStruct_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
     self->excludePredicateFun = 0;
     self->excludeList = 0;
     self->terminalValueFilter = 0;
-    self->pythonToForaConversionErrorClass = 0;
     self->nativePyObjectWalker = 0;
 
     return (PyObject*) self;
@@ -64,7 +63,6 @@ PyObjectWalkerStruct_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
 static void
 PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
     {
-    Py_XDECREF(self->pythonToForaConversionErrorClass);
     Py_XDECREF(self->terminalValueFilter);
     Py_XDECREF(self->excludeList);
     Py_XDECREF(self->excludePredicateFun);
@@ -77,7 +75,7 @@ PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
 
 namespace {
 
-PyObject* _getPythonToForaConversionErrorClass()
+PyObject* getPythonToForaConversionErrorClass()
     {
     PyObject* pyforaModule = PyImport_ImportModule("pyfora");
     if (pyforaModule == NULL) {
@@ -100,6 +98,63 @@ PyObject* _getPythonToForaConversionErrorClass()
     return pythonToForaConversionErrorClass;
     }
 
+
+PyObject* getBadWithBlockErrorClass()
+    {
+    PyObject* pyforaModule = PyImport_ImportModule("pyfora");
+    if (pyforaModule == NULL) {
+        return NULL;
+        }
+
+    PyObject* exceptionsModule = PyObject_GetAttrString(pyforaModule, "Exceptions");
+
+    Py_DECREF(pyforaModule);
+
+    if (exceptionsModule == NULL) {
+        return NULL;
+        }
+
+    PyObject* badWithBlockErrorClass = 
+        PyObject_GetAttrString(exceptionsModule, "BadWithBlockError");
+
+    Py_DECREF(exceptionsModule);
+
+    return badWithBlockErrorClass;
+    }
+
+
+void translatePythonToForaConversionError(const PythonToForaConversionError& e)
+    {
+    PyObject* pythonToForaConversionErrorClass = getPythonToForaConversionErrorClass();
+    if (pythonToForaConversionErrorClass == NULL) {
+        return;
+        }
+
+    PyErr_SetString(
+        pythonToForaConversionErrorClass,
+        e.what()
+        );
+
+    Py_DECREF(pythonToForaConversionErrorClass);
+    }
+
+
+void translateBadWithBlockError(const BadWithBlockError& e) 
+    {
+    PyObject* badWithBlockErrorClass = getBadWithBlockErrorClass();
+    if (badWithBlockErrorClass == NULL) {
+        return;
+        }
+
+    PyErr_SetString(
+        badWithBlockErrorClass,
+        e.what()
+        );
+
+    Py_DECREF(badWithBlockErrorClass);
+    }
+
+
 }
 
 
@@ -119,12 +174,6 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
     Py_DECREF(binaryObjectRegistryModule);
 
     if (binaryObjectRegistryClass == NULL) {
-        return -1;
-        }
-
-    self->pythonToForaConversionErrorClass = _getPythonToForaConversionErrorClass();
-    if (self->pythonToForaConversionErrorClass == NULL) {
-        Py_DECREF(binaryObjectRegistryClass);
         return -1;
         }
 
@@ -179,10 +228,11 @@ PyObjectWalkerStruct_walkPyObject(PyObjectWalkerStruct* self, PyObject* args)
         res = self->nativePyObjectWalker->walkPyObject(objToWalk);
         }
     catch (const PythonToForaConversionError& e) {
-        PyErr_SetString(
-            self->pythonToForaConversionErrorClass,
-            e.what()
-            );
+        translatePythonToForaConversionError(e);
+        return NULL;
+        }
+    catch (const BadWithBlockError& e) {
+        translateBadWithBlockError(e);
         return NULL;
         }
     catch (const std::exception& e) {

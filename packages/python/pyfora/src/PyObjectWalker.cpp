@@ -16,6 +16,7 @@
 #include "PyObjectWalker.hpp"
 
 #include "Ast.hpp"
+#include "BadWithBlockError.hpp"
 #include "CantGetSourceTextError.hpp"
 #include "ClassOrFunctionInfo.hpp"
 #include "FileDescription.hpp"
@@ -738,23 +739,35 @@ void PyObjectWalker::_registerWithBlock(int64_t objectId, PyObject* pyObject)
 
     PyObject* withBlockFun = _withBlockFun(pyObject, lineno);
     if (withBlockFun == NULL) {
-        PyErr_Print();
-        throw std::runtime_error("error getting with block ast functionDef");
+        throw std::runtime_error("error getting with block ast functionDef" +
+            PyObjectUtils::exc_string());
         }
     if (PyAstUtil::hasReturnInOuterScope(withBlockFun)) {
+        std::ostringstream err_oss;
+        err_oss << "return statement not supported in pyfora with-block (line ";
+        err_oss << PyAstUtil::getReturnLocationsInOuterScope(withBlockFun);
+        err_oss << ")";
+
         Py_DECREF(withBlockFun);
-        throw std::runtime_error("return statement not supported in pyfora with-block");
+
+        throw BadWithBlockError(err_oss.str());
         }
     if (PyAstUtil::hasYieldInOuterScope(withBlockFun)) {
+        std::ostringstream err_oss;
+        err_oss << "yield expression not supported in pyfora with-block (line ";
+        err_oss << PyAstUtil::getYieldLocationsInOuterScope(withBlockFun);
+        err_oss << ")";
+
         Py_DECREF(withBlockFun);
-        throw std::runtime_error("yield expression not supported in pyfora with-block");
+
+        throw BadWithBlockError(err_oss.str());
         }
 
     PyObject* chainsWithPositions = _freeMemberAccessChainsWithPositions(withBlockFun);
     if (chainsWithPositions == NULL) {
-        PyErr_Print();
         Py_DECREF(withBlockFun);
-        throw std::runtime_error("error getting freeMemberAccessChainsWithPositions");
+        throw std::runtime_error("error getting freeMemberAccessChainsWithPositions" +
+            PyObjectUtils::exc_string());
         }
 
     PyObject* boundVariables = PyObject_GetAttrString(pyObject, "boundVariables");
