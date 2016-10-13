@@ -103,7 +103,7 @@ private:
     bool _classIsNamedSingleton(PyObject* pyObject) const;
     bool _isTypeOrBuiltinFunctionAndInNamedSingletons(PyObject* pyObject) const;
 
-    ClassOrFunctionInfo _classOrFunctionInfo(const PyObject*, bool isFunction);
+    ClassOrFunctionInfo _classOrFunctionInfo(PyObject*, bool isFunction);
 
     std::map<FreeVariableMemberAccessChain, int64_t>
     _processFreeVariableMemberAccessChainResolutions(PyObject* resolutions);

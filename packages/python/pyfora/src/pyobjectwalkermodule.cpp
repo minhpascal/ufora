@@ -18,8 +18,9 @@
 
 #include <stdexcept>
 
-#include "PyObjectWalker.hpp"
 #include "PyBinaryObjectRegistry.hpp"
+#include "PyObjectWalker.hpp"
+#include "PythonToForaConversionError.hpp"
 
 /*********************************
 Defining a Python C-extension for the C++ class PyObjectWalker,
@@ -35,6 +36,7 @@ typedef struct {
     PyObject* excludePredicateFun;
     PyObject* excludeList;
     PyObject* terminalValueFilter;
+    PyObject* pythonToForaConversionErrorClass;
     PyObjectWalker* nativePyObjectWalker;
 } PyObjectWalkerStruct;
 
@@ -52,6 +54,7 @@ PyObjectWalkerStruct_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
     self->excludePredicateFun = 0;
     self->excludeList = 0;
     self->terminalValueFilter = 0;
+    self->pythonToForaConversionErrorClass = 0;
     self->nativePyObjectWalker = 0;
 
     return (PyObject*) self;
@@ -61,6 +64,7 @@ PyObjectWalkerStruct_new(PyTypeObject* type, PyObject* args, PyObject* kwds)
 static void
 PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
     {
+    Py_XDECREF(self->pythonToForaConversionErrorClass);
     Py_XDECREF(self->terminalValueFilter);
     Py_XDECREF(self->excludeList);
     Py_XDECREF(self->excludePredicateFun);
@@ -71,13 +75,41 @@ PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
     }
 
 
+namespace {
+
+PyObject* _getPythonToForaConversionErrorClass()
+    {
+    PyObject* pyforaModule = PyImport_ImportModule("pyfora");
+    if (pyforaModule == NULL) {
+        return NULL;
+        }
+
+    PyObject* exceptionsModule = PyObject_GetAttrString(pyforaModule, "Exceptions");
+
+    Py_DECREF(pyforaModule);
+
+    if (exceptionsModule == NULL) {
+        return NULL;
+        }
+
+    PyObject* pythonToForaConversionErrorClass = 
+        PyObject_GetAttrString(exceptionsModule, "PythonToForaConversionError");
+
+    Py_DECREF(exceptionsModule);
+
+    return pythonToForaConversionErrorClass;
+    }
+
+}
+
+
 static int
 PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* kwds)
     {
     PyObject* binaryObjectRegistryModule = 
         PyImport_ImportModule("pyfora.binaryobjectregistry");
     if (binaryObjectRegistryModule == NULL) {
-        throw std::runtime_error("couldn't import pyfora.binaryobjectregistry");
+        return -1;
         }
 
     PyObject* binaryObjectRegistryClass = 
@@ -85,6 +117,16 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
                                "BinaryObjectRegistry");
 
     Py_DECREF(binaryObjectRegistryModule);
+
+    if (binaryObjectRegistryClass == NULL) {
+        return -1;
+        }
+
+    self->pythonToForaConversionErrorClass = _getPythonToForaConversionErrorClass();
+    if (self->pythonToForaConversionErrorClass == NULL) {
+        Py_DECREF(binaryObjectRegistryClass);
+        return -1;
+        }
 
     if (binaryObjectRegistryClass == NULL) {
         throw std::runtime_error(
@@ -127,7 +169,7 @@ PyObjectWalkerStruct_init(PyObjectWalkerStruct* self, PyObject* args, PyObject* 
 static PyObject*
 PyObjectWalkerStruct_walkPyObject(PyObjectWalkerStruct* self, PyObject* args)
     {
-    PyObject* objToWalk = 0;
+    PyObject* objToWalk;
     if (!PyArg_ParseTuple(args, "O", &objToWalk)) {
         return NULL;
         }
@@ -136,7 +178,14 @@ PyObjectWalkerStruct_walkPyObject(PyObjectWalkerStruct* self, PyObject* args)
     try {
         res = self->nativePyObjectWalker->walkPyObject(objToWalk);
         }
-    catch(std::exception& e) {
+    catch (const PythonToForaConversionError& e) {
+        PyErr_SetString(
+            self->pythonToForaConversionErrorClass,
+            e.what()
+            );
+        return NULL;
+        }
+    catch (const std::exception& e) {
         PyErr_SetString(
             PyExc_Exception,
             e.what()
@@ -231,11 +280,12 @@ initpyobjectwalker(void)
         return;
 
     m = Py_InitModule3("pyobjectwalker",
-                      module_methods,
-                      "expose PyObjectWalker C++ class");
+                       module_methods,
+                       "expose PyObjectWalker C++ class");
 
-    if (m == NULL)
+    if (m == NULL) {
         return;
+        }
 
     Py_INCREF(&PyObjectWalkerStructType);
     PyModule_AddObject(

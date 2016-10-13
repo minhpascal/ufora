@@ -24,6 +24,7 @@
 #include "PyAstFreeVariableAnalyses.hpp"
 #include "PyforaInspect.hpp"
 #include "PyObjectUtils.hpp"
+#include "PythonToForaConversionError.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -983,12 +984,45 @@ void PyObjectWalker::_registerFunction(int64_t objectId, PyObject* pyObject)
         info.freeVariableMemberAccessChainsToId()
         );
     }
+
+
+namespace {
+
+// precondition: obj should be a function or class
+void _checkForInlineForaName(PyObject* obj) {
+    PyObject* __name__attr = PyObject_GetAttrString(obj, "__name__");
+    if (__name__attr == NULL) {
+        throw std::runtime_error(
+            "expected to find a __name__attr: " + PyObjectUtils::exc_string()
+            );
+        }
+    if (not PyString_Check(__name__attr)) {
+        Py_DECREF(__name__attr);
+        throw std::runtime_error(
+            "expected __name__ attr to be a string"
+            );
+        }
+    
+    std::string __name__attr_as_string = std::string(
+        PyString_AS_STRING(__name__attr),
+        PyString_GET_SIZE(__name__attr)
+        );
+
+    Py_DECREF(__name__attr);
+
+    if (__name__attr_as_string == "__inline_fora") {
+        throw PythonToForaConversionError("in pfora, `__inline_fora` is a reserved word");
+        }
+    }
+
+}
     
 
 ClassOrFunctionInfo
-PyObjectWalker::_classOrFunctionInfo(const PyObject* obj, bool isFunction)
+PyObjectWalker::_classOrFunctionInfo(PyObject* obj, bool isFunction)
     {
     // old PyObjectWalker checks for __inline_fora here
+    _checkForInlineForaName(obj);
 
     // should probably make these just return PyStrings, as 
     // we only repackage these into PyStrings anyway
@@ -1023,7 +1057,9 @@ PyObjectWalker::_classOrFunctionInfo(const PyObject* obj, bool isFunction)
 
     PyObject* resolutions =
         _computeAndResolveFreeVariableMemberAccessChainsInAst(obj, pyAst);
+
     Py_DECREF(pyAst);
+
     if (resolutions == NULL) {
         throw std::runtime_error(PyObjectUtils::exc_string());
         }
