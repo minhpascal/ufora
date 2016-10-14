@@ -94,7 +94,8 @@ public:
     void defineDict(int64_t objectId,
                     const std::vector<int64_t>& keyIds,
                     const std::vector<int64_t>& valueIds);
-    // TODO: DEFINE REMOTEPYTHONOBJECT
+    void defineRemotePythonObject(int64_t objectId,
+                                  const PyObject* computedValueArg);
     void defineBuiltinExceptionInstance(int64_t objectId,
                                         const std::string& typeName,
                                         int64_t argsId);
@@ -154,5 +155,7 @@ private:
     void _writeFreeVariableResolutions(
         const std::map<FreeVariableMemberAccessChain, int64_t>& chainToId
         );
+
+    std::string _computedValueDataString(const PyObject* computedValueArg) const;
 
     };

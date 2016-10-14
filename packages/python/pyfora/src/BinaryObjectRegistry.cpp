@@ -15,6 +15,7 @@
 ****************************************************************************/
 
 #include "BinaryObjectRegistry.hpp"
+#include "BinaryObjectRegistryHelpers.hpp"
 #include "FreeVariableMemberAccessChain.hpp"
 #include "PyObjectUtils.hpp"
 
@@ -166,6 +167,18 @@ void BinaryObjectRegistry::defineDict(int64_t objectId,
     mStringBuilder.addInt64s(valueIds);
     }
 
+
+void BinaryObjectRegistry::defineRemotePythonObject(
+        int64_t objectId,
+        const PyObject* computedValueArg)
+    {
+    mStringBuilder.addInt64(objectId);
+    mStringBuilder.addByte(CODE_REMOTE_PY_OBJECT);
+
+    std::string data = _computedValueDataString(computedValueArg);
+    
+    mStringBuilder.addString(data);
+    }
 
 void BinaryObjectRegistry::defineBuiltinExceptionInstance(
         int64_t objectId,
@@ -375,4 +388,25 @@ void BinaryObjectRegistry::_writeDTypeElement(PyObject* val)
         throw std::runtime_error("unknown primitive in dtype: " +
             PyObjectUtils::str_string(val));
         }
+    }
+
+
+std::string BinaryObjectRegistry::_computedValueDataString(
+        const PyObject* computedValueArg
+        ) const
+    {
+    PyObject* res = BinaryObjectRegistryHelpers::computedValueDataString(
+        computedValueArg);
+    if (res == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+    
+    std::string tr = std::string(
+        PyString_AS_STRING(res),
+        PyString_GET_SIZE(res)
+        );
+
+    Py_DECREF(res);
+
+    return tr;
     }

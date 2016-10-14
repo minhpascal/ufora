@@ -58,7 +58,8 @@ binaryobjectregistrymodule = Extension('pyfora.binaryobjectregistry',
                                                 'pyfora/src/PyforaInspect.cpp',
                                                 'pyfora/src/FreeVariableResolver.cpp',
                                                 'pyfora/src/Ast.cpp',
-                                                'pyfora/src/UnresolvedFreeVariableExceptions.cpp']
+                                                'pyfora/src/UnresolvedFreeVariableExceptions.cpp',
+                                                'pyfora/src/BinaryObjectRegistryHelpers.cpp']
                                        )
 ext_modules.append(binaryobjectregistrymodule)
 
@@ -76,7 +77,8 @@ pyobjectwalkermodule = Extension('pyfora.pyobjectwalker',
                                           'pyfora/src/PyAstFreeVariableAnalyses.cpp',
                                           'pyfora/src/PyforaInspect.cpp',
                                           'pyfora/src/Ast.cpp',
-                                          'pyfora/src/UnresolvedFreeVariableExceptions.cpp'])
+                                          'pyfora/src/UnresolvedFreeVariableExceptions.cpp',
+                                          'pyfora/src/BinaryObjectRegistryHelpers.cpp'])
 ext_modules.append(pyobjectwalkermodule)
 
 

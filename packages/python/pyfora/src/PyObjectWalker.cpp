@@ -441,14 +441,14 @@ PyObject* PyObjectWalker::_pureInstanceReplacement(PyObject* pyObject)
 void PyObjectWalker::_walkPyObject(PyObject* pyObject, int64_t objectId) {
     /* Missing:
 
-       RemotePythonObject.RemotePythonObject -- uses ComputedValue. going away?
        _Unconvertible
+       traceback_type (who hits this?)
     */
     if (PyObject_IsInstance(pyObject, mRemotePythonObjectClass))
         {
         _registerRemotePythonObject(objectId, pyObject);
         }
-    if (PyObject_IsInstance(pyObject, mPackedHomogenousDataClass))
+    else if (PyObject_IsInstance(pyObject, mPackedHomogenousDataClass))
         {
         _registerPackedHomogenousData(objectId, pyObject);
         }
@@ -560,7 +560,31 @@ void PyObjectWalker::_registerUnconvertible(int64_t objectId,
 void PyObjectWalker::_registerRemotePythonObject(int64_t objectId,
                                                  PyObject* pyObject) const
     {
-    throw std::runtime_error("_registerRemotePythonObject: not implemented");
+    PyObject* _pyforaComputedValueArg_attr = PyObject_GetAttrString(
+        pyObject,
+        "_pyforaComputedValueArg"
+        );
+    if (_pyforaComputedValueArg_attr == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+
+    PyObject* res = PyObject_CallFunctionObjArgs(
+        _pyforaComputedValueArg_attr,
+        NULL
+        );
+    
+    Py_DECREF(_pyforaComputedValueArg_attr);
+
+    if (res == NULL) {
+        throw std::runtime_error(PyObjectUtils::exc_string());
+        }
+
+    mObjectRegistry.defineRemotePythonObject(
+        objectId,
+        res
+        );
+
+    Py_DECREF(res);
     }
 
 
@@ -574,18 +598,17 @@ void PyObjectWalker::_registerPackedHomogenousData(int64_t objectId,
 void PyObjectWalker::_registerFuture(int64_t objectId, PyObject* pyObject)
     {
     PyObject* result_attr = PyObject_GetAttrString(pyObject, "result");
-
     if (result_attr == NULL) {
         PyErr_Print();
         throw std::runtime_error("expected a result member on Future.Future instances");
         }
 
     PyObject* res = PyObject_CallFunctionObjArgs(result_attr, NULL);
+
     Py_DECREF(result_attr);
+
     if (res == NULL) {
-        PyErr_Print();
-        Py_DECREF(result_attr);
-        throw std::runtime_error("an error occurred when calling future.result()");
+        throw std::runtime_error(PyObjectUtils::exc_string());
         }
 
     walkPyObject(res);
@@ -1175,7 +1198,9 @@ PyObjectWalker::_processFreeVariableMemberAccessChainResolutions(
             throw std::runtime_error("expected values to be tuples of length 2");
             }
         PyObject* resolution = PyTuple_GET_ITEM(value, 0);
-        tr[_toChain(key)] = walkPyObject(resolution);
+        
+        int64_t resolutionId = walkPyObject(resolution);
+        tr[_toChain(key)] = resolutionId;
         }
 
     return tr;
@@ -1284,7 +1309,8 @@ void PyObjectWalker::_registerClass(int64_t objectId, PyObject* pyObject)
         if (it == mPyObjectToObjectId.end()) {
             Py_DECREF(bases);
             throw std::runtime_error(
-                "expected each base class to have a registered id");
+                "expected each base class to have a registered id"
+                ". class = " + PyObjectUtils::str_string(pyObject));
             }
         
         baseClassIds.push_back(it->second);

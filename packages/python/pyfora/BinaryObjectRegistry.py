@@ -15,6 +15,7 @@
 import struct
 import json
 
+import pyfora.BinaryObjectRegistryHelpers as BinaryObjectRegistryHelpers
 from pyfora.stringbuilder import StringBuilder as StringBuilderNative
 
 
@@ -209,12 +210,7 @@ class BinaryObjectRegistry(object):
         self._builder.addInt64(objectId)
         self._builder.addByte(CODE_REMOTE_PY_OBJECT)
 
-        def encoder(obj):
-            if hasattr(obj, "toMemoizedJSON"):
-                return obj.toMemoizedJSON()
-            return obj
-
-        data = json.dumps(computedValueArg, default=encoder)
+        data = BinaryObjectRegistryHelpers.computedValueDataString(computedValueArg)
 
         self._builder.addString(data)
 
