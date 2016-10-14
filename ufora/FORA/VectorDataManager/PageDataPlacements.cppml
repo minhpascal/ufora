@@ -1,0 +1,164 @@
+/***************************************************************************
+    Copyright 2016 Ufora Inc.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+ 
+        http://www.apache.org/licenses/LICENSE-2.0
+ 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+****************************************************************************/
+
+#include "PageDataPlacements.hppml"
+
+using namespace TypedFora::Abi;
+
+bool PageDataPlacements::addrIsMapped(BigvecOrPageId mapping, int64_t offset)
+    {
+    lassert_dump(false, "not implemented");
+    }
+
+void PageDataPlacements::markThreadBlockedOn(BigvecOrPageId mapping, int64_t offset)
+    {
+    if (addrIsMapped(mapping, offset))
+        return;
+
+    lassert_dump(false, "not implemented");
+    }
+
+Nullable<pair<BigvecOrPageId, int64_t> > 
+        PageDataPlacements::translateMappingAddress(uint8_t* mappingBase, uint64_t offsetInMapping)
+    {
+    if (mMappingAddresses.size() == 0)
+        return null();
+
+    pair<uint8_t*, uint64_t> lookup(mappingBase, 0);
+
+    //it creates first value that's greater than or equal to 'lookup'
+    auto it = mMappingAddresses.getValueToKeys().lower_bound(lookup);
+
+    if (it != mMappingAddresses.getValueToKeys().end() && it->first == lookup)
+        {
+        lassert_dump(false, "we found a mapping address entry with empty size");
+        }
+
+    if (it == mMappingAddresses.getValueToKeys().begin())
+        return null();
+
+    lassert(it->first.first <= mappingBase);
+
+    if (it->first.first == mappingBase && it->first.second > offsetInMapping)
+        {
+        lassert(it->second.size() == 1);
+
+        BigvecOrPageId objId = *it->second.begin();
+        int64_t eltIndex = offsetInMapping / mMappingStrideAndValueCount[objId].first;
+
+        if (eltIndex < mMappingStrideAndValueCount[objId].second)
+            return null() << make_pair(objId, eltIndex);
+        }
+
+    return null();
+    }
+
+void PageDataPlacements::addBigVecPageLayout(const BigVectorPageLayout& layout)
+    {
+    map<int64_t, VectorDataIDSlice>& slices(mBigvecSliceMapping[layout.identity()]);
+
+    long cumulative = 0;
+    for (auto slice: layout.vectorIdentities())
+        {
+        slices[cumulative] = slice;
+        cumulative += slice.slice().size();
+        }
+    }
+
+void PageDataPlacements::setMappableAddress(
+            BigvecOrPageId target, 
+            uint8_t* address, 
+            uint64_t valueCount, 
+            uint64_t valueStride, 
+            uint64_t bytecount
+            )
+    {
+    mMappingAddresses.set(target, make_pair(address, bytecount));
+    mMappingStrideAndValueCount[target] = make_pair(valueCount, valueStride);
+    }
+
+uint8_t* PageDataPlacements::getMappableAddress(BigvecOrPageId target)
+    {
+    if (mMappingAddresses.hasKey(target))
+        return mMappingAddresses.getValue(target).first;
+
+    return nullptr;
+    }
+
+void PageDataPlacements::dropMappingTarget(BigvecOrPageId target)
+    {
+    mMappingAddresses.discard(target);
+    mMappingStrideAndValueCount.erase(target);
+    
+    if (target.isBigvec())
+        mBigvecSliceMapping.erase(target.getBigvec().bigvec());
+    }
+
+void PageDataPlacements::physicalMemoryAllocated(PhysicalMemoryAllocation allocation, uint8_t* actualAddress)
+    {
+    mPhysicalMemoryAddresses.set(allocation, actualAddress);
+    }
+
+void PageDataPlacements::physicalMemoryDeallocated(PhysicalMemoryAllocation allocation)
+    {
+    mPhysicalMemoryAddresses.discard(allocation);
+    }
+
+void PageDataPlacements::newAllocationsRequiredToBack(
+            const Fora::PageId& inPage, 
+            IntegerRange valueRange, 
+            uint64_t homogenousStride, 
+            std::vector<PhysicalMemoryAllocation>& outNewAllocations
+            )
+    {
+    
+    }
+
+void PageDataPlacements::newPhysicalLocationsBacking(
+            const Fora::PageId& inPage, 
+            IntegerRange valueRange, 
+            uint64_t homogenousStride, 
+            std::vector<PhysicalMemoryPagePlacement>& outTargetPlacements
+            )
+    {
+    
+    }
+
+void PageDataPlacements::pageDataPlacedInPhysicalMemory(Fora::PageId page, IntegerSequence pageData, PhysicalMemoryAllocation allocation, IntegerRange rangeWithinPhysical)
+    {
+    
+    }
+
+void PageDataPlacements::sharedMemoryMapped(uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mappableBase, uint64_t mappableOffset, uint64_t bytecount)
+    {
+    
+    }
+
+void PageDataPlacements::dropAllDataForPage(const Fora::PageId& inPage)
+    {
+    
+    }
+
+Nullable<pair<PageDataPlacements::Task, int64_t> > PageDataPlacements::extractTaskAndId()
+    {
+    
+    }
+
+void PageDataPlacements::taskCompleted(int64_t id)
+    {
+    
+    }
+

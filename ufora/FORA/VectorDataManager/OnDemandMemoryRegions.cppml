@@ -155,6 +155,11 @@ OnDemandMemoryRegions* OnDemandMemoryRegions::curRegionPtr()
 	return nullptr;
 	}
 
+uint64_t OnDemandMemoryRegions::pageSize() const
+	{
+	return getpagesize();
+	}
+
 OnDemandMemoryRegions::~OnDemandMemoryRegions()
 	{
 	lassert_dump(!mBlockingThreads.size(), "makes no sense to have any threads blocking at teardown");
@@ -258,7 +263,9 @@ void OnDemandMemoryRegions::blockOnAddress(void* addr)
 
 		mBlockingThreadConditions[addrCharPtr].push_back(conditionPtr);
 
+		lock.unlock();
 		mOnThreadBlocked(mBlockingThreads[info]);
+		lock.lock();
 
 		conditionPtr->wait(lock);
 		

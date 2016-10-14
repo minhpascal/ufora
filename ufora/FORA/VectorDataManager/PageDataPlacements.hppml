@@ -1,0 +1,144 @@
+/***************************************************************************
+    Copyright 2016 Ufora Inc.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+ 
+        http://www.apache.org/licenses/LICENSE-2.0
+ 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+****************************************************************************/
+
+#include "BigVectorId.hppml"
+#include "../TypedFora/ABI/BigVectorPageLayout.hppml"
+#include "PageId.hppml"
+#include "../../core/containers/MapWithIndex.hpp"
+#include "../../core/math/IntegerRange.hppml"
+
+@type BigvecOrPageId = 
+    -| Bigvec of Fora::BigVectorId bigvec
+    -| Page of Fora::PageId page
+    ;
+
+@type PhysicalMemoryAllocation = 
+    BigvecOrPageId objectId,
+    IntegerRange range,
+    size_t elementSize
+    ;
+
+@type PhysicalMemoryPagePlacement = 
+    Fora::PageId page,
+    IntegerRange pageDataSubset,
+    PhysicalMemoryAllocation allocation,
+    IntegerRange rangeWithinPhysical,
+    uint8_t* pointerToStartOfPhysicalMemory
+    ;
+
+macro_defineCppmlComparisonOperators(BigvecOrPageId);
+macro_defineCppmlComparisonOperators(PhysicalMemoryAllocation);
+
+/**************
+
+This class tracks the relationship between blocks of physical memory we've allocated
+in shared memory pools, the data we have placed in them, and the mappings we've applied.
+
+This class takes care of several things:
+    * we need to keep track of which physical memory holds what data currently
+    * we need to be able to tell in what locations the vector data we've already
+        placed lives so we can get it back if need be.
+    * when new vector data shows up, we need to figure out an ideal place to store it.
+        this means looping over the various bigvecs that could hold it and seeing if
+        we have storage allocated already for it.
+    * when we want to map data for an address, we want to see if we already have storage
+        for mappable for that page. if we can map it directly we do it immediately, but we may
+        need to make an extra copy of the data.
+
+***************/
+
+class PageDataPlacements {
+public:
+    typedef uint8_t* char_ptr;
+
+    @type Task = 
+        -| AllocatePhysicalMemory of PhysicalMemoryAllocation toAllocate
+        -| DeallocatePhysicalMemory of PhysicalMemoryAllocation memRegion, char_ptr ptr
+        -| CopyValues of char_ptr source, char_ptr dest, uint64_t eltSize, uint64_t sourceStride, uint64_t count
+        -| MapMemory of char_ptr sharedBase, uint64_t sharedOffset, char_ptr mappableBase, uint64_t mappableOffset, uint64_t bytecount
+        -| BroadcastPageDataNeeded of Fora::PageId page, IntegerRange data
+        ;
+
+    //is this object/element offset validly mapped?
+    bool addrIsMapped(BigvecOrPageId mapping, int64_t offset);
+
+    //indicate that a thread is blocked reading this data. If the value is already mapped,
+    //we disregard it.
+    void markThreadBlockedOn(BigvecOrPageId mapping, int64_t offset);
+
+    //given a mapping and a byte offset in the mapping, what is the object and element-offset it corresponds to?
+    Nullable<pair<BigvecOrPageId, int64_t> > translateMappingAddress(uint8_t* mappingBase, uint64_t offsetInMapping);
+
+    void addBigVecPageLayout(const TypedFora::Abi::BigVectorPageLayout& layout);
+
+    //we've produced a memory-mapping to 'target'
+    void setMappableAddress(
+                BigvecOrPageId target, 
+                uint8_t* address, 
+                uint64_t valueCount, 
+                uint64_t valueStride, 
+                uint64_t bytecount
+                );
+
+    //get the base address for a given target, or nullptr if none exists
+    uint8_t* getMappableAddress(BigvecOrPageId target);
+
+    //drop the mapping target and mark all physical memory that's mapped to it as unmapped.
+    void dropMappingTarget(BigvecOrPageId target);
+    
+    //we created physical memory to back a given bigvec.
+    void physicalMemoryAllocated(PhysicalMemoryAllocation allocation, uint8_t* actualAddress);
+
+    //we deallocated some physical memory
+    void physicalMemoryDeallocated(PhysicalMemoryAllocation allocation);
+
+    //determine any new physical allocations we might need to ensure that 'inPage/valueRange' is fully backed by real memory
+    //we expect clients to populate these physical memory locations immediately and call us back
+    void newAllocationsRequiredToBack(const Fora::PageId& inPage, IntegerRange valueRange, uint64_t homogenousStride, std::vector<PhysicalMemoryAllocation>& outNewAllocations);
+    
+    //break 'inPage/valueRange' into a set of physical page placements if we don't have them.
+    //we expect clients to populate these physical memory locations and call 'pageDataPlacedInPhysicalMemory'
+    //once they're done. The memory is considered locked until that happens.
+    void newPhysicalLocationsBacking(
+                const Fora::PageId& inPage, 
+                IntegerRange valueRange, 
+                uint64_t homogenousStride, 
+                std::vector<PhysicalMemoryPagePlacement>& outTargetPlacements
+                );
+
+    //we wrote some page data into a block of physical memory and need to remember that that
+    //data is populated
+    void pageDataPlacedInPhysicalMemory(Fora::PageId page, IntegerSequence pageData, PhysicalMemoryAllocation allocation, IntegerRange rangeWithinPhysical);
+
+    //indicates that a background-requested shared-memory mapping was completed
+    void sharedMemoryMapped(uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mappableBase, uint64_t mappableOffset, uint64_t bytecount);
+
+    //get a list of all of the page placements
+    void dropAllDataForPage(const Fora::PageId& inPage);
+
+    Nullable<pair<Task, int64_t> > extractTaskAndId();
+
+    void taskCompleted(int64_t id);
+
+private:
+    MapWithIndex<BigvecOrPageId, pair<uint8_t*, uint64_t> > mMappingAddresses;
+
+    map<BigvecOrPageId, pair<uint64_t, uint64_t> > mMappingStrideAndValueCount;
+
+    MapWithIndex<PhysicalMemoryAllocation, uint8_t*> mPhysicalMemoryAddresses;
+
+    map<Fora::BigVectorId, map<int64_t, TypedFora::Abi::VectorDataIDSlice> > mBigvecSliceMapping;
+};
