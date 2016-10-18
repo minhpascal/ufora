@@ -1,0 +1,191 @@
+/***************************************************************************
+    Copyright 2016 Ufora Inc.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+ 
+        http://www.apache.org/licenses/LICENSE-2.0
+ 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+****************************************************************************/
+#pragma once
+
+#include "IntegerRange.hppml"
+#include "Nullable.hpp"
+#include <set>
+
+/****************
+
+IntegerRanges
+
+Models a set of non-overlapping integer ranges.
+
+If 'collapseContiguous', then two ranges that touch are coalesced into one,
+and if we remove a range that's contained within a larger range, we produce
+two other ranges. 
+
+If false, we insist that each range is a valid object.
+
+Ranges may never overlap.
+
+****************/
+
+template<bool collapse_contiguous>
+class IntegerRanges {
+public:
+	IntegerRanges()
+		{
+		}
+
+	bool contains(int64_t value) const
+		{
+		return iterator_containing(value, false) != mStartToSize.end();
+		}
+
+	Nullable<IntegerRange> rangeContaining(int64_t value) const
+		{
+		auto it = iterator_containing(value, false);
+		if (it != mStartToSize.end())
+			return null() << IntegerRange(it->first, it->second);
+		return null();
+		}
+
+	void addRange(IntegerRange range)
+		{
+		lassert(mStartToSize.find(range.low()) == mStartToSize.end());
+
+		mStartToSize[range.low()] = range.high();
+
+		checkContiguousness(range.low());
+		}
+
+	void removeRange(IntegerRange range)
+		{
+		if (collapse_contiguous)
+			{
+			auto nRange = rangeContaining(range.low());
+			lassert(nRange);
+			IntegerRange containing = *nRange;
+
+			mStartToSize.erase(containing.low());
+
+			if (containing == range)
+				return;
+
+			if (containing.low() < range.low())
+				mStartToSize[containing.low()] = range.low();
+
+			if (containing.high() > range.high())
+				mStartToSize[range.high()] = containing.high();
+			}
+		else
+			{
+			auto it = mStartToSize.find(range.low());
+			lassert(it != mStartToSize.end());
+			lassert(it->second == range.high())
+			mStartToSize.erase(it);
+			}
+		}
+
+	void rangesNotCovered(IntegerRange range, std::vector<IntegerRange>& outRanges)
+		{
+		std::vector<IntegerRange> dummy;
+		subdivide(range, dummy, outRanges);
+		}
+
+	//get all the ranges that intersect with 'range'.
+	void rangesIntersecting(IntegerRange range, std::vector<IntegerRange>& outRanges)
+		{
+		std::vector<IntegerRange> dummy;
+		subdivide(range, outRanges, dummy);
+		}
+
+	void subdivide(IntegerRange range, std::vector<IntegerRange>& outRangesOverlapping, std::vector<IntegerRange>& outRangesNotCovered)
+		{
+		auto it = iterator_containing(range.low(), true);
+
+		while (it != mStartToSize.end() && range.low() < range.high())
+			{
+			if (it->first > range.low())
+				{
+				outRangesNotCovered.push_back(IntegerRange(range.low(), it->first));
+				range.low() = it->second;
+				}
+			else
+				{	
+				outRangesOverlapping.push_back(IntegerRange(it->first, it->second));
+				it++;
+				}
+			}
+
+		if (range.low() < range.high())
+			outRangesNotCovered.push_back(range);
+		}
+
+private:
+	void checkContiguousness(int64_t value)
+		{
+		auto it = mStartToSize.find(value);
+
+		lassert(it != mStartToSize.end());
+
+		if (it != mStartToSize.begin())
+			{	
+			auto it_below = it;
+			it_below--;
+
+			lassert(it_below->second <= value);
+
+			if (collapse_contiguous && it_below->second == value)
+				{	
+				it_below->second = it->second;
+				mStartToSize.erase(it);
+				it = it_below;
+				}
+			}
+
+		auto it_above = it;
+		it++;
+
+		if (it_above != mStartToSize.end())
+			{
+			lassert(it_above->first >= it->second);
+
+			if (collapse_contiguous && it->second == it_above->first)
+				{	
+				it->second = it_above->second;
+
+				mStartToSize.erase(it_above);
+				}
+			}
+		}
+
+	//if 'orBelow' is true, then if this is not contained within a range, return a pointer
+	//to the range that's just below (e.g. the one we'd have to make larger to contain this value)
+	std::map<int64_t, int64_t>::const_iterator iterator_containing(int64_t val, bool orBelow) const
+		{
+		//it points to first value that's greater or equal to 'value'
+		auto it = mStartToSize.lower_bound(val);
+
+		if (it != mStartToSize.end() && it->first == val)
+			return it;
+
+		if (it == mStartToSize.begin())
+			return mStartToSize.end();
+
+		it--;
+
+		if (!orBelow && it->second <= val)
+			return mStartToSize.end();
+
+		return it;
+		}
+
+	std::map<int64_t, int64_t> mStartToSize;
+};
+

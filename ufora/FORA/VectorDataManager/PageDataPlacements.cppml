@@ -18,17 +18,288 @@
 
 using namespace TypedFora::Abi;
 
-bool PageDataPlacements::addrIsMapped(BigvecOrPageId mapping, int64_t offset)
+PageDataPlacements::PageDataPlacements(
+                        int64_t pageSize,
+                        boost::function<uint8_t* (PhysicalMemoryAllocation alloc)> inAllocator,
+                        boost::function<void (PhysicalMemoryAllocation alloc, uint8_t*)> inDeallocator,
+                        boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> inMapper,
+                        boost::function<void (Fora::PageId page, IntegerRange data)> inBroadcaster
+                        ) : 
+                    mPageSize(pageSize),
+                    mAllocateFunc(inAllocator),
+                    mDeallocateFunc(inDeallocator),
+                    mMapFunc(inMapper),
+                    mBroadcastFunc(inBroadcaster)
     {
-    lassert_dump(false, "not implemented");
     }
 
-void PageDataPlacements::markThreadBlockedOn(BigvecOrPageId mapping, int64_t offset)
+bool PageDataPlacements::valueIsMapped(BigvecOrPageId mapping, int64_t valueIndex)
     {
-    if (addrIsMapped(mapping, offset))
+    return mAddressesMapped[mapping].contains(valueIndex);
+    }
+
+uint8_t* PageDataPlacements::getWriteableAddress(PhysicalMemoryAllocation allocation)
+    {
+    return mPhysicalMemoryAddresses.getValue(allocation);
+    }
+
+IntegerRange PageDataPlacements::pageContainingByteOffset(int64_t byteOffset)
+    {
+    int64_t page = int64_t(byteOffset / mPageSize);
+
+    return IntegerRange(page * mPageSize, (page+1) * mPageSize);
+    }
+
+IntegerRange PageDataPlacements::valueRangeOverlappingByteRange(IntegerRange byteRange, int64_t valueStride)
+    {
+    return IntegerRange(byteRange.low() / valueStride, int64_t((byteRange.high() - 1) / valueStride) + 1);
+    }
+
+void PageDataPlacements::markThreadBlockedOn(BigvecOrPageId mapping, int64_t valueIndex)
+    {
+    if (valueIsMapped(mapping, valueIndex))
         return;
 
-    lassert_dump(false, "not implemented");
+    int64_t stride = mMappingStrideAndValueCount[mapping].first;
+
+    int64_t byteOffset = valueIndex * stride;
+
+    IntegerRange byteRange = pageContainingByteOffset(byteOffset);
+
+    //now, we have to convert that back to a minimum value range. These values
+    //have to be defined for us to be able to cure this missing page
+    IntegerRange valueRange = valueRangeOverlappingByteRange(byteRange, stride);
+
+    std::vector<pair<Fora::PageId, IntegerRange> > neededPageRanges;
+
+    mapBigvecOrPageRangeToPageRanges(mapping, valueRange, neededPageRanges);
+
+    std::vector<pair<Fora::PageId, IntegerRange> > missingPageRanges;
+
+    for (auto pr: neededPageRanges)
+        {
+        std::vector<IntegerRange> partsOfThisPageNeeded;
+
+        mPageDataBytecountRangesDefined[pr.first].rangesNotCovered(pr.second, partsOfThisPageNeeded);
+
+        for (auto range: partsOfThisPageNeeded)
+            missingPageRanges.push_back(make_pair(pr.first, valueRangeOverlappingByteRange(range, stride)));
+        }
+
+    if (missingPageRanges.size())
+        {
+        for (auto r: missingPageRanges)
+            mBroadcastFunc(r.first, r.second);
+        }
+    else
+        scheduleNecessaryTasksForMapping(mapping, valueIndex);
+    }
+
+void PageDataPlacements::scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t valueIndex)
+    {
+    //first, figure out which physical pages we need to ensure are populated
+    int64_t stride = mMappingStrideAndValueCount[obj].first;
+
+    int64_t byteOffset = valueIndex * stride;
+
+    IntegerRange byteRange = pageContainingByteOffset(byteOffset);
+
+    std::vector<IntegerRange> coveringRanges;
+    mPhysicalMemoryBytecountRangesDefined[obj].rangesIntersecting(byteRange, coveringRanges);
+
+    lassert_dump(
+        coveringRanges.size() <= 1,
+        "it makes no sense for a byte-range representing a single page to be covered "
+            << "by multiple physical allocations, since those have to be aligned on pages."
+        );
+
+    if (!coveringRanges.size())
+        {
+        PhysicalMemoryAllocation alloc(
+            obj,
+            byteRange
+            );
+
+        allocatePhysicalMemory(alloc);
+        }
+
+    std::vector<IntegerRange> neededBytecountRanges;
+
+    mPhysicalMemoryBytecountRangesPopulated[obj].rangesNotCovered(byteRange, neededBytecountRanges);
+
+    for (auto bytecountRange: neededBytecountRanges)
+        {
+        //map the bytecountRange into a set of values for this bigvec that encloses
+        IntegerRange valueRange = valueRangeOverlappingByteRange(bytecountRange, stride);
+        
+        //these are regions we need to copy from somewhere else
+        std::vector<pair<Fora::PageId, RangeToIntegerSequence> > neededPageRanges;
+
+        mapBigvecOrPageRangeToPageRanges(obj, valueRange, neededPageRanges);
+
+        for (auto pageAndMapping: neededPageRanges)
+            scheduleCopyTask(pageAndMapping.first, pageAndMapping.second, obj, bytecountRange, stride);
+        }
+    }
+
+void PageDataPlacements::scheduleCopyTask(Fora::PageId page, RangeToIntegerSequence targetToPageMapping, BigvecOrPageId targetObject, IntegerRange bytecountRangeInTargetRestriction, int64_t eltSize)
+    {
+    IntegerRange rangeInTarget = targetToPageMapping.domain();
+    IntegerRange rangeInPage = targetToPageMapping.range().containingRange();
+
+    IntegerRange byteRangeInPage = rangeInPage * eltSize;
+    IntegerRange byteRangeInTarget = rangeInTarget * eltSize;
+
+    //each target range should be fully contained within a physical mapping already.
+    Nullable<IntegerRange> nPhysicalRange = 
+        mPhysicalMemoryBytecountRangesDefined[targetObject].rangeContaining(bytecountRangeInTargetRestriction.low());
+
+    lassert(nPhysicalRange);
+
+    //the range should enclose the bytecount range entirely
+    IntegerRange physicalRange = *nPhysicalRange;
+    lassert(physicalRange.contains(bytecountRangeInTargetRestriction));
+
+    PhysicalMemoryAllocation targetAlloc(targetObject, physicalRange);
+    uint8_t* targetBase = mPhysicalMemoryAddresses.getValue(targetAlloc);
+
+    //currently, we assume that the source data is always held in a mapping for a page
+    //we also assume that the values are present and valid
+    std::vector<IntegerRange> physicalRangesDefiningPage;
+    std::vector<IntegerRange> shouldBeEmpty;
+    
+    mPhysicalMemoryBytecountRangesDefined[BigvecOrPageId::Page(page)].subdivide(byteRangeInPage, physicalRangesDefiningPage, shouldBeEmpty);
+    
+    lassert(shouldBeEmpty.size() == 0);
+
+    for (auto r: physicalRangesDefiningPage)
+        {
+        PhysicalMemoryAllocation sourceAlloc(BigvecOrPageId::Page(page), r);
+        uint8_t* allocBase = mPhysicalMemoryAddresses.getValue(sourceAlloc);
+
+        scheduleTask(
+            StridedArrayCopyTask(
+                allocBase - r.low(),
+                targetBase - physicalRange.low(),
+                eltSize,
+                targetToPageMapping.offset(),
+                targetToPageMapping.stride(),
+                targetBase - physicalRange.low() + bytecountRangeInTargetRestriction.low(),
+                targetBase - physicalRange.low() + bytecountRangeInTargetRestriction.high()
+                )
+            );
+        }
+    }
+
+void PageDataPlacements::taskComplete(StridedArrayCopyTask task)
+    {
+    uint8_t* destLow = task.destLow();
+    int64_t bytesPopulated = task.destHigh() - task.destLow();
+
+    IntegerRange addressRange = *mPhysicalMemoryAddressesAsRanges.rangeContaining((int64_t)destLow);
+
+    PhysicalMemoryAllocation alloc = *mPhysicalMemoryAddresses.getKeys((uint8_t*)addressRange.low()).begin();
+
+    int64_t offsetInAlloc = (int64_t)destLow - addressRange.low();
+
+    IntegerRange bytecountPopulated(
+        offsetInAlloc + alloc.byteRange().low(),
+        offsetInAlloc + alloc.byteRange().low() + bytesPopulated
+        );
+
+    if (alloc.objectId().isPage())
+        mPageDataBytecountRangesDefined[alloc.objectId().getPage().page()].addRange(bytecountPopulated);
+    else
+        {
+        //really, we should be careful to indicate that some bigvec data may actually contain
+        //page data as well
+        }
+
+    mPhysicalMemoryBytecountRangesPopulated[alloc.objectId()].addRange(bytecountPopulated);
+
+    //the range that bytesPopulated is contained in is now a candidate for mapping
+    IntegerRange containingRange = *mPhysicalMemoryBytecountRangesPopulated[alloc.objectId()].rangeContaining(bytecountPopulated.low());
+
+    //limit this to page size
+    if (containingRange.low() % mPageSize)
+        containingRange.low() += mPageSize - containingRange.low() % mPageSize;
+    if (containingRange.high() % mPageSize)
+        containingRange.high() -= containingRange.high() % mPageSize;
+
+    if (containingRange.low() < containingRange.high())
+        {
+        std::vector<IntegerRange> notContained;
+        mPhysicalMemoryBytecountRangesMapped[alloc.objectId()].rangesNotCovered(containingRange, notContained);
+
+        //each range is now mappable
+        for (auto r: notContained)
+            {
+            mPhysicalMemoryBytecountRangesMapped[alloc.objectId()].addRange(r);
+            mMapFunc(
+                mPhysicalMemoryAddresses.getValue(alloc),
+                r.low() - alloc.byteRange().low(),
+                mMappingAddresses.getValue(alloc.objectId()).first,
+                r.low(),
+                r.size()
+                );
+            }
+        }
+    }
+
+void PageDataPlacements::scheduleTask(StridedArrayCopyTask task)
+    {
+    mTasks.push_back(task);
+    }
+
+void PageDataPlacements::mapBigvecOrPageRangeToPageRanges(
+                    BigvecOrPageId objId, 
+                    IntegerRange valueRange, 
+                    std::vector<pair<Fora::PageId, IntegerRange> >& outRanges
+                    )
+    {
+    std::vector<pair<Fora::PageId, RangeToIntegerSequence> > ranges;
+
+    mapBigvecOrPageRangeToPageRanges(objId, valueRange, ranges);
+
+    for (auto r: ranges)
+        outRanges.push_back(make_pair(r.first, r.second.range().containingRange()));
+    }
+
+void PageDataPlacements::mapBigvecOrPageRangeToPageRanges(
+                    BigvecOrPageId objId, 
+                    IntegerRange valueRange, 
+                    std::vector<pair<Fora::PageId, RangeToIntegerSequence> >& outRanges
+                    )
+    {
+    @match BigvecOrPageId(objId)
+        -| Page(pageId) ->> {
+            outRanges.push_back(
+                make_pair(
+                    pageId, 
+                    RangeToIntegerSequence::maps(valueRange, IntegerSequence(valueRange))
+                    )
+                );
+            }
+        -| Bigvec(bigvec) ->> {
+            std::vector<IntegerRange> ranges;
+            
+            mBigvecSlices[bigvec].rangesIntersecting(valueRange, ranges);
+
+            for (auto rng: ranges)
+                {
+                VectorDataIDSlice slice = mBigvecSliceMapping[bigvec][rng.low()];
+
+                //this is the active range within the slice
+                IntegerRange rangeWithinSlice = rng.intersect(valueRange) - rng.low();
+
+                IntegerSequence valuesWithinPage = slice.slice().slice(IntegerSequence(rangeWithinSlice));
+
+                RangeToIntegerSequence out = 
+                    RangeToIntegerSequence::maps(rng.intersect(valueRange), valuesWithinPage);
+
+                outRanges.push_back(make_pair(slice.vector().getPage(), out));
+                }
+            }
     }
 
 Nullable<pair<BigvecOrPageId, int64_t> > 
@@ -50,6 +321,8 @@ Nullable<pair<BigvecOrPageId, int64_t> >
     if (it == mMappingAddresses.getValueToKeys().begin())
         return null();
 
+    it--;
+
     lassert(it->first.first <= mappingBase);
 
     if (it->first.first == mappingBase && it->first.second > offsetInMapping)
@@ -69,10 +342,13 @@ Nullable<pair<BigvecOrPageId, int64_t> >
 void PageDataPlacements::addBigVecPageLayout(const BigVectorPageLayout& layout)
     {
     map<int64_t, VectorDataIDSlice>& slices(mBigvecSliceMapping[layout.identity()]);
+    IntegerRanges<false>& ranges(mBigvecSlices[layout.identity()]);
 
     long cumulative = 0;
     for (auto slice: layout.vectorIdentities())
         {
+        ranges.addRange(IntegerRange(cumulative, cumulative + slice.slice().size()));
+
         slices[cumulative] = slice;
         cumulative += slice.slice().size();
         }
@@ -104,61 +380,146 @@ void PageDataPlacements::dropMappingTarget(BigvecOrPageId target)
     mMappingStrideAndValueCount.erase(target);
     
     if (target.isBigvec())
+        {
         mBigvecSliceMapping.erase(target.getBigvec().bigvec());
+        mBigvecSlices.erase(target.getBigvec().bigvec());
+        }
     }
 
-void PageDataPlacements::physicalMemoryAllocated(PhysicalMemoryAllocation allocation, uint8_t* actualAddress)
+void PageDataPlacements::allocatePhysicalMemory(PhysicalMemoryAllocation allocation)
     {
+    uint8_t* actualAddress = mAllocateFunc(allocation);
+    lassert(actualAddress);
+
     mPhysicalMemoryAddresses.set(allocation, actualAddress);
+    mPhysicalMemoryAddressesAsRanges.addRange(
+        IntegerRange((int64_t)actualAddress, (int64_t)actualAddress + allocation.byteRange().size())
+        );
+
+    mPhysicalMemoryBytecountRangesDefined[allocation.objectId()].addRange(allocation.byteRange());
     }
 
-void PageDataPlacements::physicalMemoryDeallocated(PhysicalMemoryAllocation allocation)
+void PageDataPlacements::deallocatePhysicalMemory(PhysicalMemoryAllocation allocation)
     {
+    uint8_t* actualAddress = mPhysicalMemoryAddresses.getValue(allocation);
+
+    mDeallocateFunc(allocation, actualAddress);
+
     mPhysicalMemoryAddresses.discard(allocation);
+    mPhysicalMemoryAddressesAsRanges.removeRange(
+        IntegerRange((int64_t)actualAddress, (int64_t)actualAddress + allocation.byteRange().size())
+        );
+
+    mPhysicalMemoryBytecountRangesDefined[allocation.objectId()].removeRange(allocation.byteRange());
     }
 
-void PageDataPlacements::newAllocationsRequiredToBack(
+IntegerRange PageDataPlacements::expandRangeToPageSize(IntegerRange range, int64_t eltSize, int64_t pagesPerBlock)
+    {
+    //compute the page blocks we'll need to store this data. These are inclusive - we have to include the top byte
+    //of the topmost item
+    int64_t lowPageBlock = range.low() * eltSize / mPageSize / pagesPerBlock;
+    int64_t highPageBlock = (range.high() * eltSize - 1) / mPageSize / pagesPerBlock;
+
+    return IntegerRange(
+        lowPageBlock * eltSize * mPageSize * pagesPerBlock,
+        (highPageBlock + 1) * eltSize * mPageSize * pagesPerBlock
+        );
+    }
+
+void PageDataPlacements::ensurePhysicalBackingFor(
             const Fora::PageId& inPage, 
             IntegerRange valueRange, 
-            uint64_t homogenousStride, 
-            std::vector<PhysicalMemoryAllocation>& outNewAllocations
+            uint64_t homogenousStride
             )
     {
-    
+    std::vector<IntegerRange> subrangesNotDefined;
+
+    //for each range, figure out a physical range that can host it
+    //for now, we just put the data directly into page storage
+    IntegerRange hostingRange = expandRangeToPageSize(valueRange, homogenousStride, 64);
+
+    //restrict to a set of ranges that cover what we need.
+    mPhysicalMemoryBytecountRangesDefined[BigvecOrPageId::Page(inPage)]
+        .rangesNotCovered(hostingRange, subrangesNotDefined);
+
+    //each one becomes a new physical allocation we need to make
+    for (auto rng: subrangesNotDefined)
+        allocatePhysicalMemory(
+            PhysicalMemoryAllocation(
+                BigvecOrPageId::Page(inPage), 
+                rng
+                )
+            );
     }
 
-void PageDataPlacements::newPhysicalLocationsBacking(
-            const Fora::PageId& inPage, 
-            IntegerRange valueRange, 
-            uint64_t homogenousStride, 
-            std::vector<PhysicalMemoryPagePlacement>& outTargetPlacements
-            )
-    {
-    
-    }
 
-void PageDataPlacements::pageDataPlacedInPhysicalMemory(Fora::PageId page, IntegerSequence pageData, PhysicalMemoryAllocation allocation, IntegerRange rangeWithinPhysical)
+bool PageDataPlacements::allocatePageData(
+                const Fora::PageId& inPage, 
+                IntegerRange valueRange,
+                uint64_t homogenousStride,
+                uint8_t* addr
+                )
     {
-    
-    }
+    ensurePhysicalBackingFor(inPage, valueRange, homogenousStride);
 
-void PageDataPlacements::sharedMemoryMapped(uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mappableBase, uint64_t mappableOffset, uint64_t bytecount)
-    {
-    
+    std::vector<IntegerRange> subrangesNotDefined;
+
+    IntegerRange bytecountRangeProvided = valueRange * homogenousStride;
+
+    mPageDataBytecountRangesDefined[inPage].rangesNotCovered(bytecountRangeProvided, subrangesNotDefined);
+
+    for (auto byteRange: subrangesNotDefined)
+        {
+        std::vector<IntegerRange> subrangesCovering, partsNotCovered;    
+
+        //each range here should be contained within one of the physical ranges we have defined for the page
+        IntegerRanges<false>& sequences = mPhysicalMemoryBytecountRangesDefined[BigvecOrPageId::Page(inPage)];
+
+        sequences.subdivide(byteRange, subrangesCovering, partsNotCovered);
+
+        lassert(partsNotCovered.size() == 0);
+
+        for (auto physicalBytecountRange: subrangesCovering)
+            {
+            IntegerRange intersection = physicalBytecountRange.intersect(byteRange);
+
+            PhysicalMemoryAllocation alloc(
+                BigvecOrPageId::Page(inPage), 
+                physicalBytecountRange
+                );
+
+            uint8_t* allocAddr = mPhysicalMemoryAddresses.getValue(alloc);
+
+            scheduleTask(
+                StridedArrayCopyTask(
+                    addr - homogenousStride * valueRange.low(),
+                    allocAddr - physicalBytecountRange.low(),
+                    homogenousStride,
+                    1,
+                    0,
+                    allocAddr,
+                    allocAddr + alloc.byteRange().size()
+                    )
+                );
+            }
+        }
+
+    return true;
     }
 
 void PageDataPlacements::dropAllDataForPage(const Fora::PageId& inPage)
     {
-    
+    lassert_dump(false, "not implemented");
     }
 
-Nullable<pair<PageDataPlacements::Task, int64_t> > PageDataPlacements::extractTaskAndId()
+Nullable<StridedArrayCopyTask> PageDataPlacements::extractTask()
     {
-    
-    }
+    if (mTasks.size())
+        {
+        StridedArrayCopyTask t = *mTasks.begin();
+        mTasks.pop_front();
+        return null() << t;
+        }
 
-void PageDataPlacements::taskCompleted(int64_t id)
-    {
-    
+    return null();
     }
-

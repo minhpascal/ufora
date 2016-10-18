@@ -17,26 +17,22 @@
 #include "BigVectorId.hppml"
 #include "../TypedFora/ABI/BigVectorPageLayout.hppml"
 #include "PageId.hppml"
+#include "StridedArrayCopyTask.hppml"
 #include "../../core/containers/MapWithIndex.hpp"
 #include "../../core/math/IntegerRange.hppml"
+#include "../../core/math/RangeToIntegerSequence.hppml"
+#include "../../core/math/IntegerRanges.hppml"
 
 @type BigvecOrPageId = 
     -| Bigvec of Fora::BigVectorId bigvec
     -| Page of Fora::PageId page
     ;
 
+//represents a group of pages allocated to be the physical backing
+//of a bigvec or a page
 @type PhysicalMemoryAllocation = 
     BigvecOrPageId objectId,
-    IntegerRange range,
-    size_t elementSize
-    ;
-
-@type PhysicalMemoryPagePlacement = 
-    Fora::PageId page,
-    IntegerRange pageDataSubset,
-    PhysicalMemoryAllocation allocation,
-    IntegerRange rangeWithinPhysical,
-    uint8_t* pointerToStartOfPhysicalMemory
+    IntegerRange byteRange
     ;
 
 macro_defineCppmlComparisonOperators(BigvecOrPageId);
@@ -62,22 +58,20 @@ This class takes care of several things:
 
 class PageDataPlacements {
 public:
-    typedef uint8_t* char_ptr;
-
-    @type Task = 
-        -| AllocatePhysicalMemory of PhysicalMemoryAllocation toAllocate
-        -| DeallocatePhysicalMemory of PhysicalMemoryAllocation memRegion, char_ptr ptr
-        -| CopyValues of char_ptr source, char_ptr dest, uint64_t eltSize, uint64_t sourceStride, uint64_t count
-        -| MapMemory of char_ptr sharedBase, uint64_t sharedOffset, char_ptr mappableBase, uint64_t mappableOffset, uint64_t bytecount
-        -| BroadcastPageDataNeeded of Fora::PageId page, IntegerRange data
-        ;
+    PageDataPlacements(
+                int64_t inPageSize,
+                boost::function<uint8_t* (PhysicalMemoryAllocation alloc)> inAllocator,
+                boost::function<void (PhysicalMemoryAllocation alloc, uint8_t*)> inDeallocator,
+                boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> inMapper,
+                boost::function<void (Fora::PageId page, IntegerRange data)> inBroadcaster
+                );
 
     //is this object/element offset validly mapped?
-    bool addrIsMapped(BigvecOrPageId mapping, int64_t offset);
+    bool valueIsMapped(BigvecOrPageId mapping, int64_t offset);
 
     //indicate that a thread is blocked reading this data. If the value is already mapped,
     //we disregard it.
-    void markThreadBlockedOn(BigvecOrPageId mapping, int64_t offset);
+    void markThreadBlockedOn(BigvecOrPageId mapping, int64_t valueIndex);
 
     //given a mapping and a byte offset in the mapping, what is the object and element-offset it corresponds to?
     Nullable<pair<BigvecOrPageId, int64_t> > translateMappingAddress(uint8_t* mappingBase, uint64_t offsetInMapping);
@@ -96,49 +90,111 @@ public:
     //get the base address for a given target, or nullptr if none exists
     uint8_t* getMappableAddress(BigvecOrPageId target);
 
+    uint8_t* getWriteableAddress(PhysicalMemoryAllocation allocation);
+
     //drop the mapping target and mark all physical memory that's mapped to it as unmapped.
     void dropMappingTarget(BigvecOrPageId target);
-    
-    //we created physical memory to back a given bigvec.
-    void physicalMemoryAllocated(PhysicalMemoryAllocation allocation, uint8_t* actualAddress);
 
-    //we deallocated some physical memory
-    void physicalMemoryDeallocated(PhysicalMemoryAllocation allocation);
-
-    //determine any new physical allocations we might need to ensure that 'inPage/valueRange' is fully backed by real memory
-    //we expect clients to populate these physical memory locations immediately and call us back
-    void newAllocationsRequiredToBack(const Fora::PageId& inPage, IntegerRange valueRange, uint64_t homogenousStride, std::vector<PhysicalMemoryAllocation>& outNewAllocations);
-    
-    //break 'inPage/valueRange' into a set of physical page placements if we don't have them.
-    //we expect clients to populate these physical memory locations and call 'pageDataPlacedInPhysicalMemory'
-    //once they're done. The memory is considered locked until that happens.
-    void newPhysicalLocationsBacking(
-                const Fora::PageId& inPage, 
-                IntegerRange valueRange, 
-                uint64_t homogenousStride, 
-                std::vector<PhysicalMemoryPagePlacement>& outTargetPlacements
-                );
-
-    //we wrote some page data into a block of physical memory and need to remember that that
-    //data is populated
-    void pageDataPlacedInPhysicalMemory(Fora::PageId page, IntegerSequence pageData, PhysicalMemoryAllocation allocation, IntegerRange rangeWithinPhysical);
-
-    //indicates that a background-requested shared-memory mapping was completed
-    void sharedMemoryMapped(uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mappableBase, uint64_t mappableOffset, uint64_t bytecount);
+    //indicates that some requested data was copied
+    void taskComplete(StridedArrayCopyTask task);
 
     //get a list of all of the page placements
     void dropAllDataForPage(const Fora::PageId& inPage);
 
-    Nullable<pair<Task, int64_t> > extractTaskAndId();
+    Nullable<StridedArrayCopyTask> extractTask();
 
-    void taskCompleted(int64_t id);
+    //add some new data from the outside. Clients are expected to 
+    //flush all outstanding memory copy tasks from the system before 
+    //addr may be released.
+    bool allocatePageData(
+                    const Fora::PageId& inPage, 
+                    IntegerRange valueRange,
+                    uint64_t homogenousStride,
+                    uint8_t* addr
+                    );
 
 private:
+    //we wrote some page data into a block of physical memory and need to remember that that
+    //data is populated
+    void pageDataPlacedInPhysicalMemory(Fora::PageId page, IntegerSequence bytesWithinPage, PhysicalMemoryAllocation allocation, IntegerRange bytesWithinPhysical);
+
+    void ensurePhysicalBackingFor(
+                const Fora::PageId& inPage, 
+                IntegerRange valueRange, 
+                uint64_t homogenousStride
+                );
+    
+    //we created physical memory to back a given bigvec.
+    void allocatePhysicalMemory(PhysicalMemoryAllocation allocation);
+
+    //we deallocated some physical memory
+    void deallocatePhysicalMemory(PhysicalMemoryAllocation allocation);
+
+    void scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t valueIndex);
+    
+    void scheduleTask(StridedArrayCopyTask task);
+
+    IntegerRange pageContainingByteOffset(int64_t byteOffset);
+
+    IntegerRange expandRangeToPageSize(IntegerRange range, int64_t eltSize, int64_t pagesPerBlock);
+
+    IntegerRange valueRangeOverlappingByteRange(IntegerRange byteRange, int64_t valueStride);
+
+    //map a value range in a mappable object to the set of values in a page that are required
+    //to back it
+    void mapBigvecOrPageRangeToPageRanges(
+                    BigvecOrPageId objId, 
+                    IntegerRange valueRange, 
+                    std::vector<pair<Fora::PageId, IntegerRange> >& outRanges
+                    );
+
+    void mapBigvecOrPageRangeToPageRanges(
+                    BigvecOrPageId objId, 
+                    IntegerRange valueRange, 
+                    std::vector<pair<Fora::PageId, RangeToIntegerSequence> >& outRanges
+                    );
+
+    //copy data from someplace already containing 'page' to the physical backing store of 'targetObject'.
+    //targetToPageMapping indicates how the values in 'targetObject' need to be created from the page.
+    //bytecountRangeInTarget restricts the target bytecount range (for edges). We should be guaranteed
+    //that bytecountRangeInTarget is contained within a physical mapping.
+    void scheduleCopyTask(Fora::PageId page, RangeToIntegerSequence targetToPageMapping, BigvecOrPageId targetObject, IntegerRange bytecountRangeInTarget, int64_t eltSize);
+
+    int64_t mPageSize;
+
+    map<BigvecOrPageId, IntegerRanges<false> > mAddressesMapped;
+
     MapWithIndex<BigvecOrPageId, pair<uint8_t*, uint64_t> > mMappingAddresses;
 
     map<BigvecOrPageId, pair<uint64_t, uint64_t> > mMappingStrideAndValueCount;
 
     MapWithIndex<PhysicalMemoryAllocation, uint8_t*> mPhysicalMemoryAddresses;
 
+    IntegerRanges<false> mPhysicalMemoryAddressesAsRanges;
+
     map<Fora::BigVectorId, map<int64_t, TypedFora::Abi::VectorDataIDSlice> > mBigvecSliceMapping;
+
+    map<Fora::BigVectorId, IntegerRanges<false> > mBigvecSlices;
+
+    //for each page, what values do we have actual definitions for somewhere
+    map<Fora::PageId, IntegerRanges<true> > mPageDataBytecountRangesDefined;
+
+    //for each object, which ranges are backed by physical memory
+    map<BigvecOrPageId, IntegerRanges<false> > mPhysicalMemoryBytecountRangesDefined;
+
+    //for each object, which ranges actually have values copied in
+    map<BigvecOrPageId, IntegerRanges<true> > mPhysicalMemoryBytecountRangesPopulated;
+
+    //for each object, which ranges actually have values copied in
+    map<BigvecOrPageId, IntegerRanges<false> > mPhysicalMemoryBytecountRangesMapped;
+
+    std::deque<StridedArrayCopyTask> mTasks;
+
+    boost::function<uint8_t* (PhysicalMemoryAllocation alloc)> mAllocateFunc;
+
+    boost::function<void (PhysicalMemoryAllocation alloc, uint8_t*)> mDeallocateFunc;
+    
+    boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> mMapFunc;
+
+    boost::function<void (Fora::PageId page, IntegerRange data)> mBroadcastFunc;
 };

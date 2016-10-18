@@ -122,12 +122,25 @@ public:
 			);
 		}
 
+	IntegerRange operator*(int64_t m) const
+		{
+		return IntegerRange(
+			low() * m,
+			high() * m
+			);
+		}
+
 	IntegerRange operator-(int64_t other) const
 		{
 		return IntegerRange(
 			low() - other,
 			high() - other
 			);
+		}
+
+	bool contains(IntegerRange child) const
+		{
+		return low() <= child.low() && high() >= child.high();
 		}
 };
 

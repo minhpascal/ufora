@@ -1,0 +1,177 @@
+/***************************************************************************
+    Copyright 2016 Ufora Inc.
+ 
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+ 
+        http://www.apache.org/licenses/LICENSE-2.0
+ 
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+****************************************************************************/
+
+
+/***********
+StridedArrayCopyTask
+
+Describes copying memory from a source array to a dest array of elements
+with specific sizes, gated by a window.
+
+We need this complicated structure becase some arrays may have elements sizes
+that are not evenly divided into the os page size. As an example, we may want
+to populate bytes  4096 through 8192 of an array of items with size 9. This
+means we actually may have to copy fractional elements at the source.
+
+**********/
+
+@type StridedArrayCopyTask =
+    uint8_t* sourceBase, //points to the first element of 'source'
+    uint8_t* destBase, //points to the first element of 'dest'
+
+    uint64_t eltSize, //size of all elements. E.g. the 'ix' element of dest or source
+    				  //is contained within bytes [ix * eltSize, (ix+1) * eltSize - 1]
+
+    uint64_t sourceOffsetElements, //defines the mapping of dest elements: 
+    uint64_t sourceStrideElements, //dest[ix] = source[offset + ix * stride]
+
+    uint8_t* destLow, //lowest address to populate with data
+    uint8_t* destHigh //highest address to populate with data
+{
+public:
+	void copyElement(int64_t destElt)
+		{
+		uint8_t* target = destBase() + destElt * eltSize();
+		uint8_t* source = sourceBase() + (destElt + sourceOffsetElements()) * eltSize() * sourceStrideElements();
+		int64_t bytecount = eltSize();
+
+		if (target < destLow())
+			{
+			bytecount -= destLow() - target;
+			target = destLow();
+			}
+
+		if (target + bytecount > destHigh())
+			bytecount = destHigh() - target;
+
+		if (bytecount > 0)
+			memcpy(target, source, bytecount);
+		}
+
+	void copy()
+		{
+        if (sourceStrideElements() == 1)
+        	{
+        	int64_t bytesIntoDest = destLow() - destBase();
+
+            uint8_t* sourceLow = sourceBase() + bytesIntoDest + sourceOffsetElements() * eltSize();
+
+            memcpy(destLow(), sourceLow, destHigh() - destLow());
+        	}
+        else
+        	{
+        	//compute the inclusive elements of 'dest'
+        	int64_t firstDestElement = (destLow() - destBase()) / eltSize();
+        	int64_t highestDestElement = (destHigh() - destBase() - 1) / eltSize();
+
+        	lassert(firstDestElement < highestDestElement);
+
+        	copyElement(firstDestElement);
+        	copyElement(highestDestElement);
+
+        	//interior elements can be copied without worrying about window sizes
+        	copyStrided(
+        		destBase() + (firstDestElement+1) * eltSize(), 
+        		eltSize(),
+        		sourceBase() + ((firstDestElement+1) + sourceOffsetElements()) * eltSize() * sourceStrideElements(),
+        		eltSize() * sourceStrideElements(),
+        		eltSize(),
+        		highestDestElement - firstDestElement - 1
+        		);
+        	}
+		}
+
+	static void copyStrided(
+				uint8_t* dest,
+				int64_t destStride,
+				uint8_t* source,
+				int64_t sourceStride,
+				int64_t itemSize,
+				int64_t count
+				)
+		{
+		while (true)
+			{
+			if (itemSize > 8)
+				{
+				copyStrided(dest, destStride, source, sourceStride, 8, count);
+				itemSize -= 8;
+				dest += 8;
+				source += 8;
+				}
+				else
+			if (itemSize == 8)
+				{
+				for (long k = 0; k < count; k++)
+					{
+					((int64_t*)dest)[0] = ((int64_t*)source)[0];
+					dest += destStride;
+					source += sourceStride;
+					}
+				return;
+				}
+				else
+			if (itemSize > 4)
+				{
+				copyStrided(dest, destStride, source, sourceStride, 4, count);
+				itemSize -= 4;
+				dest += 4;
+				source += 4;
+				}
+				else
+			if (itemSize == 4)
+				{
+				for (long k = 0; k < count; k++)
+					{
+					((int32_t*)dest)[0] = ((int32_t*)source)[0];
+					dest += destStride;
+					source += sourceStride;
+					}
+				return;
+				}
+				else
+			if (itemSize > 2)
+				{
+				copyStrided(dest, destStride, source, sourceStride, 2, count);
+				itemSize -= 2;
+				dest += 2;
+				source += 2;
+				}
+				else
+			if (itemSize == 2)
+				{
+				for (long k = 0; k < count; k++)
+					{
+					((int16_t*)dest)[0] = ((int16_t*)source)[0];
+					dest += destStride;
+					source += sourceStride;
+					}
+				return;
+				}
+				else
+			if (itemSize == 1)
+				{
+				for (long k = 0; k < count; k++)
+					{
+					((int8_t*)dest)[0] = ((int8_t*)source)[0];
+					dest += destStride;
+					source += sourceStride;
+					}
+				return;
+				}
+			}
+		}
+};

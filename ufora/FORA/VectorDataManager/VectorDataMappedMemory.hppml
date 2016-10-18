@@ -86,7 +86,7 @@ public:
                     const Fora::PageId& inPage, 
                     IntegerRange valueRange,
                     uint64_t homogenousStride,
-                    boost::function<void (uint8_t*, IntegerRange)> inPopulateFunc
+                    uint8_t* addr
                     );
 
 
