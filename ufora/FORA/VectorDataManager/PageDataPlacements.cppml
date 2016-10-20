@@ -23,9 +23,10 @@ PageDataPlacements::PageDataPlacements(
                         boost::function<uint8_t* (PhysicalMemoryAllocation alloc)> inAllocator,
                         boost::function<void (PhysicalMemoryAllocation alloc, uint8_t*)> inDeallocator,
                         boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> inMapper,
-                        boost::function<void (Fora::PageId page, IntegerRange data)> inBroadcaster
+                        boost::function<void (Fora::PageId page, IntegerRange bytecountRange)> inBroadcaster
                         ) : 
                     mPageSize(pageSize),
+                    mAllocationZoneMapping(pageSize),
                     mAllocateFunc(inAllocator),
                     mDeallocateFunc(inDeallocator),
                     mMapFunc(inMapper),
@@ -33,9 +34,9 @@ PageDataPlacements::PageDataPlacements(
     {
     }
 
-bool PageDataPlacements::valueIsMapped(BigvecOrPageId mapping, int64_t valueIndex)
+bool PageDataPlacements::byteIsMapped(BigvecOrPageId mapping, int64_t byteOffset)
     {
-    return mAddressesMapped[mapping].contains(valueIndex);
+    return mBytesMapped[mapping].contains(valueIndex);
     }
 
 uint8_t* PageDataPlacements::getWriteableAddress(PhysicalMemoryAllocation allocation)
@@ -55,57 +56,51 @@ IntegerRange PageDataPlacements::valueRangeOverlappingByteRange(IntegerRange byt
     return IntegerRange(byteRange.low() / valueStride, int64_t((byteRange.high() - 1) / valueStride) + 1);
     }
 
-void PageDataPlacements::markThreadBlockedOn(BigvecOrPageId mapping, int64_t valueIndex)
+void PageDataPlacements::markThreadBlockedOn(BigvecOrPageId mapping, int64_t byteOffset)
     {
-    if (valueIsMapped(mapping, valueIndex))
+    if (byteIsMapped(mapping, byteOffset))
         return;
-
-    int64_t stride = mMappingStrideAndValueCount[mapping].first;
-
-    int64_t byteOffset = valueIndex * stride;
 
     IntegerRange byteRange = pageContainingByteOffset(byteOffset);
 
-    //now, we have to convert that back to a minimum value range. These values
-    //have to be defined for us to be able to cure this missing page
-    IntegerRange valueRange = valueRangeOverlappingByteRange(byteRange, stride);
+    std::vector<pair<Fora::PageId, IntegerRange> > neededPageBytecountRanges;
 
-    std::vector<pair<Fora::PageId, IntegerRange> > neededPageRanges;
+    mAllocationZoneMapping.mapBigvecOrPageRangeToPageBytecountRanges(mapping, byteRange, neededPageBytecountRanges);
 
-    mapBigvecOrPageRangeToPageRanges(mapping, valueRange, neededPageRanges);
+    std::vector<pair<Fora::PageId, IntegerRange> > missingPageBytecountRanges;
 
-    std::vector<pair<Fora::PageId, IntegerRange> > missingPageRanges;
-
-    for (auto pr: neededPageRanges)
+    for (auto pr: neededPageBytecountRanges)
         {
-        std::vector<IntegerRange> partsOfThisPageNeeded;
+        std::vector<IntegerRange> byteRangesOfThisPageNeeded;
 
-        mPageDataBytecountRangesDefined[pr.first].rangesNotCovered(pr.second, partsOfThisPageNeeded);
+        mPageDataBytecountRangesDefined[pr.first].rangesNotCovered(pr.second, byteRangesOfThisPageNeeded);
 
-        for (auto range: partsOfThisPageNeeded)
-            missingPageRanges.push_back(make_pair(pr.first, valueRangeOverlappingByteRange(range, stride)));
+        for (auto range: byteRangesOfThisPageNeeded)
+            missingPageBytecountRanges.push_back(make_pair(pr.first, range));
         }
 
-    if (missingPageRanges.size())
+    if (missingPageBytecountRanges.size())
         {
-        for (auto r: missingPageRanges)
+        for (auto r: missingPageBytecountRanges)
             mBroadcastFunc(r.first, r.second);
         }
     else
-        scheduleNecessaryTasksForMapping(mapping, valueIndex);
+        scheduleNecessaryTasksForMapping(mapping, byteIndex);
     }
 
-void PageDataPlacements::scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t valueIndex)
+void PageDataPlacements::scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t byteOffset)
     {
-    //first, figure out which physical pages we need to ensure are populated
-    int64_t stride = mMappingStrideAndValueCount[obj].first;
+    //figure out the allocation zone containing this offset
+    RangeToZoneMapping zone = currentZoneMappingFor(obj, byteOffset);
 
-    int64_t byteOffset = valueIndex * stride;
+    int64_t offsetInZone = zone.objectByteOffsetToZone(byteOffset);
 
-    IntegerRange byteRange = pageContainingByteOffset(byteOffset);
+    IntegerRange byteRangeInZone = pageContainingByteOffset(offsetInZone);
 
     std::vector<IntegerRange> coveringRanges;
-    mPhysicalMemoryBytecountRangesDefined[obj].rangesIntersecting(byteRange, coveringRanges);
+
+    mPhysicalMemoryBytecountRangesDefined[zone.zoneContainingData()]
+        .rangesIntersecting(byteRangeInZone, coveringRanges);
 
     lassert_dump(
         coveringRanges.size() <= 1,
@@ -116,7 +111,7 @@ void PageDataPlacements::scheduleNecessaryTasksForMapping(BigvecOrPageId obj, in
     if (!coveringRanges.size())
         {
         PhysicalMemoryAllocation alloc(
-            obj,
+            zone.zoneContainingData(),
             byteRange
             );
 
@@ -125,7 +120,7 @@ void PageDataPlacements::scheduleNecessaryTasksForMapping(BigvecOrPageId obj, in
 
     std::vector<IntegerRange> neededBytecountRanges;
 
-    mPhysicalMemoryBytecountRangesPopulated[obj].rangesNotCovered(byteRange, neededBytecountRanges);
+    mPhysicalMemoryBytecountRangesPopulated[zone.zoneContainingData()].rangesNotCovered(byteRangeInZone, neededBytecountRanges);
 
     for (auto bytecountRange: neededBytecountRanges)
         {
@@ -330,10 +325,8 @@ Nullable<pair<BigvecOrPageId, int64_t> >
         lassert(it->second.size() == 1);
 
         BigvecOrPageId objId = *it->second.begin();
-        int64_t eltIndex = offsetInMapping / mMappingStrideAndValueCount[objId].first;
-
-        if (eltIndex < mMappingStrideAndValueCount[objId].second)
-            return null() << make_pair(objId, eltIndex);
+        
+        return null() << make_pair(objId, offsetInMapping);
         }
 
     return null();
@@ -363,7 +356,6 @@ void PageDataPlacements::setMappableAddress(
             )
     {
     mMappingAddresses.set(target, make_pair(address, bytecount));
-    mMappingStrideAndValueCount[target] = make_pair(valueCount, valueStride);
     }
 
 uint8_t* PageDataPlacements::getMappableAddress(BigvecOrPageId target)
@@ -377,7 +369,6 @@ uint8_t* PageDataPlacements::getMappableAddress(BigvecOrPageId target)
 void PageDataPlacements::dropMappingTarget(BigvecOrPageId target)
     {
     mMappingAddresses.discard(target);
-    mMappingStrideAndValueCount.erase(target);
     
     if (target.isBigvec())
         {

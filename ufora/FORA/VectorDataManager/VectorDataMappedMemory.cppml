@@ -89,7 +89,7 @@ public:
 
         performBackgroundCopyTasks_(lock);
 
-        if (!mPageDataPlacement->valueIsMapped(addr->first, addr->second))
+        if (!mPageDataPlacement->byteIsMapped(addr->first, addr->second))
             context->interrupt();
         }
 

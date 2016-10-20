@@ -17,6 +17,8 @@
 
 #include "IntegerRange.hppml"
 #include "Nullable.hpp"
+#include "../Logging.hpp"
+
 #include <set>
 
 /****************
@@ -27,11 +29,10 @@ Models a set of non-overlapping integer ranges.
 
 If 'collapseContiguous', then two ranges that touch are coalesced into one,
 and if we remove a range that's contained within a larger range, we produce
-two other ranges. 
+two other ranges. In this model we never object to adding duplicate ranges
+or removing un-held ranges.
 
-If false, we insist that each range is a valid object.
-
-Ranges may never overlap.
+If false, we insist that each range is a valid, nonoverlapping object.
 
 ****************/
 
@@ -57,31 +58,51 @@ public:
 
 	void addRange(IntegerRange range)
 		{
-		lassert(mStartToSize.find(range.low()) == mStartToSize.end());
+		if (collapse_contiguous)
+			{
+			std::vector<IntegerRange> existing, notCovered;
+			subdivide(range, existing, notCovered);
 
-		mStartToSize[range.low()] = range.high();
+			if (existing.size())
+				{
+				for (auto k: existing)
+					mStartToSize.erase(k.low());
+				
+				mStartToSize[existing[0].low()] = std::max(existing.back().high(), range.high());
+				checkContiguousness(existing[0].low());
+				}
+			else
+				{
+				mStartToSize[range.low()] = range.high();
+				checkContiguousness(range.low());
+				}
+			}
+		else
+			{
+			lassert(mStartToSize.find(range.low()) == mStartToSize.end());
 
-		checkContiguousness(range.low());
+			mStartToSize[range.low()] = range.high();
+			checkContiguousness(range.low());
+			}
 		}
 
 	void removeRange(IntegerRange range)
 		{
 		if (collapse_contiguous)
 			{
-			auto nRange = rangeContaining(range.low());
-			lassert(nRange);
-			IntegerRange containing = *nRange;
+			std::vector<IntegerRange> existing, notCovered;
+			subdivide(range, existing, notCovered);
 
-			mStartToSize.erase(containing.low());
+			for (auto containing: existing)
+				{
+				mStartToSize.erase(containing.low());
 
-			if (containing == range)
-				return;
+				if (containing.low() < range.low())
+					mStartToSize[containing.low()] = range.low();
 
-			if (containing.low() < range.low())
-				mStartToSize[containing.low()] = range.low();
-
-			if (containing.high() > range.high())
-				mStartToSize[range.high()] = containing.high();
+				if (containing.high() > range.high())
+					mStartToSize[range.high()] = containing.high();
+				}
 			}
 		else
 			{
@@ -105,20 +126,40 @@ public:
 		subdivide(range, outRanges, dummy);
 		}
 
+	//outRangesOverlapping = all ranges that touch 'range'
+	//outRangesNotCovered = all ranges contained within 'range' that are not covered by outRangesOverlapping.
+	//the union of the two should cover 'range'
 	void subdivide(IntegerRange range, std::vector<IntegerRange>& outRangesOverlapping, std::vector<IntegerRange>& outRangesNotCovered)
 		{
+		if (mStartToSize.size() == 0)
+			{
+			outRangesNotCovered.push_back(range);
+			return;
+			}
+
 		auto it = iterator_containing(range.low(), true);
+
+		if (range.low() < mStartToSize.begin()->first)
+			it = mStartToSize.begin();
 
 		while (it != mStartToSize.end() && range.low() < range.high())
 			{
 			if (it->first > range.low())
 				{
-				outRangesNotCovered.push_back(IntegerRange(range.low(), it->first));
-				range.low() = it->second;
+				outRangesNotCovered.push_back(IntegerRange(range.low(), std::min(range.high(), it->first)));
+				range.low() = it->first;
 				}
 			else
-				{	
-				outRangesOverlapping.push_back(IntegerRange(it->first, it->second));
+				{
+				IntegerRange r(it->first, it->second);
+
+				if (it->second > range.low())
+					{
+					outRangesOverlapping.push_back(r);
+
+					range.low() = it->second;
+					}
+
 				it++;
 				}
 			}
@@ -150,7 +191,7 @@ private:
 			}
 
 		auto it_above = it;
-		it++;
+		it_above++;
 
 		if (it_above != mStartToSize.end())
 			{

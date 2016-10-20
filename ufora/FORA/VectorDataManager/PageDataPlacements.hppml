@@ -28,12 +28,258 @@
     -| Page of Fora::PageId page
     ;
 
+//describes a single allocation zone. Zone memory is always page aligned
+@type AllocationZone = 
+    //raw page data, with first byte of the page starting at 'byteOffset' inside the zone
+    -| Page of Fora::PageId page, uint64_t byteOffset
+    //a bigvec zone.
+    -| Bigvec of Fora::BigVectorId bigvec
+    ;
+
+//describes how a visible region of memory is mapped to an AllocationZone
+@type RangeToZoneMapping = 
+    IntegerRange byteRangeInObject,
+    AllocationZone zoneContainingData,
+    IntegerRange byteRangeInZone
+{
+public:
+    uint64_t objectByteOffsetToZone(uint64_t o) const
+        {
+        return o - byteRangeInObject().low() + byteRangeInZone().low();
+        }
+};
+
 //represents a group of pages allocated to be the physical backing
 //of a bigvec or a page
 @type PhysicalMemoryAllocation = 
-    BigvecOrPageId objectId,
+    AllocationZone objectId,
     IntegerRange byteRange
     ;
+
+//decides how we map bigvecs to allocation zones
+class AllocationZoneMapping {
+public:
+    AllocationZoneMapping(int64_t pageSize) : mPageSize(pageSize)
+        {
+        }
+
+    void addBigvec(const TypedFora::Abi::BigVectorPageLayout& layout)
+        {
+        int64_t elementSize = layout.identity().jor()[0].type()->size();
+
+        map<int64_t, TypedFora::Abi::VectorDataIDSlice>& slices(mBigvecSliceMapping[layout.identity()]);
+
+        IntegerRanges<false>& ranges(mBigvecSlices[layout.identity()]);
+
+        int64_t lastByteRange = 0;
+
+        long cumulative = 0;
+        for (auto slice: layout.vectorIdentities())
+            {
+            IntegerRange byterange = 
+                IntegerRange(cumulative, cumulative + slice.slice().size()) * elementSize;
+
+            if (slice.slice().stride() == 1)
+                {
+                //we can map a portion of the Page zone into this one
+                //round the low byterange up to pagesize. AllocationZone mappings are always
+                //aligned on the page
+
+                uint64_t pageBoundary = roundUpToPageSize(byterange.low());
+                uint64_t pageBoundaryTop = roundDownToPageSize(byterange.high());
+
+                if (pageBoundary < pageBoundaryTop)
+                    {
+                    if (pageBoundary > lastByteRange)
+                        {
+                        addBigvecZone(
+                            layout.identity(),
+                            RangeToZoneMapping(
+                                IntegerRange(lastByteRange, pageBoundary),
+                                AllocationZone::Bigvec(layout.identity()),
+                                IntegerRange(lastByteRange, pageBoundary)
+                                )
+                            );
+                        }
+
+                    uint64_t firstValueOfMappingByteOffsetInPage = slice.slice().offset() * elementSize;
+                    
+                    uint64_t pageBoundaryByteOffsetInPage = 
+                        firstValueOfMappingByteOffsetInPage + (pageBoundary - byterange.low());
+
+                    //we need to pick a byte offset for the first byte in the page so that
+                    //    pageBoundaryByteOffsetInPage + pageByteOffset 
+                    //is page aligned
+
+                    //this is the 'byte' that the first piece of page data will have to 
+                    //reside in in the AllocationZone if we're going to use this page.
+                    uint64_t pageByteOffset = roundUpToPageSize(pageBoundaryByteOffsetInPage) - pageBoundaryByteOffsetInPage;
+
+                    lassert(pageByteOffset >= 0 && pageByteOffset < mPageSize);
+
+                    //this is the first byte of page data that 'pageBoundary' will represent
+                    uint64_t firstByteOfPageDataReferencedByRange = 
+                        pageByteOffset + pageBoundaryByteOffsetInPage;
+
+                    lassert(firstByteOfPageDataReferencedByRange % mPageSize == 0);
+
+                    addBigvecZone(
+                        layout.identity(),
+                        RangeToZoneMapping(
+                            IntegerRange(pageBoundary, pageBoundaryTop),
+                            AllocationZone::Page(slice.vector().getPage(), pageByteOffset),
+                            IntegerRange(
+                                firstByteOfPageDataReferencedByRange,
+                                firstByteOfPageDataReferencedByRange + 
+                                    pageBoundaryTop - pageBoundary
+                                )
+                            )
+                        );
+
+                    lastByteRange = pageBoundaryTop;
+                    }
+                }
+
+            ranges.addRange(byterange);
+
+            slices[cumulative] = slice;
+            cumulative += slice.slice().size();
+            }
+
+        if (cumulative > lastByteRange)
+            {
+            int64_t roundedUp = roundUpToPageSize(cumulative);
+
+            addBigvecZone(
+                layout.identity(),
+                RangeToZoneMapping(
+                    IntegerRange(lastByteRange, roundedUp),
+                    AllocationZone::Bigvec(layout.identity()),
+                    IntegerRange(lastByteRange, roundedUp)
+                    )
+                );
+            }
+        }
+
+    RangeToZoneMapping zoneMappingFor(const Fora::BigVectorId& object, int64_t byteOffset) const
+        {
+        auto it = mBigvecZoneBoundaries.find(object);
+        lassert(it != mBigvecZoneBoundaries.end());
+
+        IntegerRange rng = *it->second.rangeContaining(byteOffset);
+
+        auto it2 = mBigvecZoneMappings.find(make_pair(object, rng));
+
+        lassert(it2 != mBigvecZoneMappings.end());
+
+        return it2->second;
+        }
+
+    const std::map<AllocationZone, long>& zonesActiveForPage(const Fora::PageId& page)
+        {
+        return mPageZoneRefcounts[page];
+        }
+
+    void mapBigvecOrPageRangeToPageBytecountRanges(
+                BigvecOrPageId id, 
+                IntegerRange byteRange, 
+                std::vector<pair<Fora::PageId, IntegerRange> >& outNeededPageBytecountRanges
+                )
+        {
+        @match BigvecOrPageId(id)
+            -| Page(p) ->> {
+                outNeededPageBytecountRanges.push_back(make_pair(p, byteRange));
+                }
+            -| Bigvec(b) ->> {
+                int64_t elementSize = b.jor()[0].type()->size();
+
+                std::vector<pair<Fora::PageId, RangeToIntegerSequence> > outRanges;
+                bigvecValueMappings(b, valueRangeOverlappingByteRange(byteRange, elementSize), outRanges);
+
+                for (auto r: outRanges)
+                    outNeededPageBytecountRanges.push_back(
+                        make_pair(
+                            r.first,
+                            r.second.range() * elementSize
+                            )
+                        );
+                }
+        }
+
+    void bigvecValueMappings(
+                    BigVectorId bigvec, 
+                    IntegerRange valueRange, 
+                    std::vector<pair<Fora::PageId, RangeToIntegerSequence> >& outRanges
+                    )
+        {
+        int64_t elementSize = bigvec.jor()[0].type()->size();
+
+        std::vector<IntegerRange> ranges;
+        
+        mBigvecSlices[bigvec].rangesIntersecting(valueRange, ranges);
+
+        for (auto rng: ranges)
+            {
+            VectorDataIDSlice slice = mBigvecSliceMapping[bigvec][rng.low()];
+
+            //this is the active range within the slice
+            IntegerRange rangeWithinSlice = rng.intersect(valueRange) - rng.low();
+
+            IntegerSequence valuesWithinPage = slice.slice().slice(IntegerSequence(rangeWithinSlice));
+
+            RangeToIntegerSequence out = 
+                RangeToIntegerSequence::maps(rng.intersect(valueRange), valuesWithinPage);
+
+            outRanges.push_back(make_pair(slice.vector().getPage(), out));
+            }
+        }
+
+private:
+    IntegerRange valueRangeOverlappingByteRange(IntegerRange byteRange, int64_t valueStride)
+        {
+        return IntegerRange(byteRange.low() / valueStride, int64_t((byteRange.high() - 1) / valueStride) + 1);
+        }
+
+
+    void addBigvecZone(Fora::BigVectorId id, RangeToZoneMapping mapping)
+        {
+        mBigvecZoneBoundaries[id].addRange(mapping.byteRangeInObject());
+        mBigvecZoneMappings[make_pair(id,mapping.byteRangeInObject())] = mapping;
+
+        @match AllocationZone(mapping.zoneContainingData())
+            -| Page(p) ->> {
+                mPageZoneRefcounts[p][mapping.zoneContainingData()]++;
+                }
+            -| _ ->> {}
+        }
+
+    uint64_t roundUpToPageSize(uint64_t o) const
+        {
+        auto frac = o % mPageSize;
+        if (frac)
+            return o + mPageSize - frac;
+        return o;
+        }
+
+    uint64_t roundDownToPageSize(uint64_t o) const
+        {
+        return o - o % mPageSize;
+        }
+
+    int64_t mPageSize;
+
+    map<Fora::BigVectorId, map<int64_t, TypedFora::Abi::VectorDataIDSlice> > mBigvecSliceMapping;
+
+    map<Fora::BigVectorId, IntegerRanges<false> > mBigvecSlices;
+
+    map<Fora::BigVectorId, IntegerRanges<false> > mBigvecZoneBoundaries;
+
+    map<pair<Fora::BigVectorId, IntegerRange>, RangeToZoneMapping> mBigvecZoneMappings;
+
+    std::map<Fora::PageId, std::map<AllocationZone, long> > mPageZoneRefcounts; 
+    
+};
+
 
 macro_defineCppmlComparisonOperators(BigvecOrPageId);
 macro_defineCppmlComparisonOperators(PhysicalMemoryAllocation);
@@ -63,17 +309,17 @@ public:
                 boost::function<uint8_t* (PhysicalMemoryAllocation alloc)> inAllocator,
                 boost::function<void (PhysicalMemoryAllocation alloc, uint8_t*)> inDeallocator,
                 boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> inMapper,
-                boost::function<void (Fora::PageId page, IntegerRange data)> inBroadcaster
+                boost::function<void (Fora::PageId page, IntegerRange bytecountRange)> inBroadcaster
                 );
 
     //is this object/element offset validly mapped?
-    bool valueIsMapped(BigvecOrPageId mapping, int64_t offset);
+    bool byteIsMapped(BigvecOrPageId mapping, int64_t byteOffset);
 
     //indicate that a thread is blocked reading this data. If the value is already mapped,
     //we disregard it.
-    void markThreadBlockedOn(BigvecOrPageId mapping, int64_t valueIndex);
+    void markThreadBlockedOn(BigvecOrPageId mapping, int64_t byteOffset);
 
-    //given a mapping and a byte offset in the mapping, what is the object and element-offset it corresponds to?
+    //given a mapping and a byte offset in the mapping, what is the object and relative byte-offset it corresponds to?
     Nullable<pair<BigvecOrPageId, int64_t> > translateMappingAddress(uint8_t* mappingBase, uint64_t offsetInMapping);
 
     void addBigVecPageLayout(const TypedFora::Abi::BigVectorPageLayout& layout);
@@ -130,7 +376,7 @@ private:
     //we deallocated some physical memory
     void deallocatePhysicalMemory(PhysicalMemoryAllocation allocation);
 
-    void scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t valueIndex);
+    void scheduleNecessaryTasksForMapping(BigvecOrPageId obj, int64_t byteOffset);
     
     void scheduleTask(StridedArrayCopyTask task);
 
@@ -166,26 +412,20 @@ private:
 
     MapWithIndex<BigvecOrPageId, pair<uint8_t*, uint64_t> > mMappingAddresses;
 
-    map<BigvecOrPageId, pair<uint64_t, uint64_t> > mMappingStrideAndValueCount;
-
     MapWithIndex<PhysicalMemoryAllocation, uint8_t*> mPhysicalMemoryAddresses;
 
     IntegerRanges<false> mPhysicalMemoryAddressesAsRanges;
-
-    map<Fora::BigVectorId, map<int64_t, TypedFora::Abi::VectorDataIDSlice> > mBigvecSliceMapping;
-
-    map<Fora::BigVectorId, IntegerRanges<false> > mBigvecSlices;
 
     //for each page, what values do we have actual definitions for somewhere
     map<Fora::PageId, IntegerRanges<true> > mPageDataBytecountRangesDefined;
 
     //for each object, which ranges are backed by physical memory
-    map<BigvecOrPageId, IntegerRanges<false> > mPhysicalMemoryBytecountRangesDefined;
+    map<AllocationZone, IntegerRanges<false> > mPhysicalMemoryBytecountRangesDefined;
 
     //for each object, which ranges actually have values copied in
-    map<BigvecOrPageId, IntegerRanges<true> > mPhysicalMemoryBytecountRangesPopulated;
+    map<AllocationZone, IntegerRanges<true> > mPhysicalMemoryBytecountRangesPopulated;
 
-    //for each object, which ranges actually have values copied in
+    //for each object, which ranges actually have values mapped
     map<BigvecOrPageId, IntegerRanges<false> > mPhysicalMemoryBytecountRangesMapped;
 
     std::deque<StridedArrayCopyTask> mTasks;
@@ -196,5 +436,7 @@ private:
     
     boost::function<bool (uint8_t* sharedBase, uint64_t sharedOffset, uint8_t* mapBase, uint64_t mapOffset, uint64_t bytecount)> mMapFunc;
 
-    boost::function<void (Fora::PageId page, IntegerRange data)> mBroadcastFunc;
+    boost::function<void (Fora::PageId page, IntegerRange bytecountRange)> mBroadcastFunc;
+
+    AllocationZoneMapping mAllocationZoneMapping;
 };

@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include "../cppml/CPPMLPrettyPrinter.hppml"
+#include "../cppml/CPPMLEquality.hppml"
 
 /****************
 
@@ -153,4 +154,6 @@ public:
 			s << "[" << t.low() << "," << t.high() << ")";
 			}
 };
+
+macro_defineCppmlComparisonOperators(IntegerRange);
 
