@@ -13,35 +13,38 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 ****************************************************************************/
-#pragma once
-
-#include "DeserializerBase.hpp"
-
-#include <unistd.h>
+#include <Python.h>
 
 
-class StringDeserializer: public Deserializer {
-public:
-    StringDeserializer(const std::vector<char>& data);
-    StringDeserializer(const std::string& data);
-    StringDeserializer(const char* data, size_t size);
+extern "C" {
 
-    virtual ~StringDeserializer()
-        {
+static PyObject*
+deserializeFromStream(PyObject* self, PyObject* args)
+    {
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "not implemented"
+        );
+    return NULL;
+    }
+
+PyMODINIT_FUNC
+initBinaryObjectRegistryDeserializerModule()
+    {
+    PyObject* binaryObjectRegistryDeserializerModule;
+
+    if (PyType_Ready(&binaryObjectRegistryDeserializerModule) < 0) {
+        return;
         }
 
-    virtual bool finished() {
-        return mIndex >= mData.size();
-        }
+    binaryObjectRegistryDeserializerModule = Py_InitModule3(
+        "BinaryObjectRegistryDeserializer",
+        module_methods,
+        "expose BinaryObjectRegistryDeserializer C++ class"
+        );
+    if (binaryObjectRegistryDeserializerModule == NULL) {
+        return;
+        }    
+    }
 
-    virtual char readByte();
-    virtual int32_t readInt32();
-    virtual int64_t readInt64();
-    virtual double readFloat64();
-    virtual void readInt64s(std::vector<int64_t>& ioInts);
-    virtual std::string readString();
-
-private:
-    std::vector<char> mData;
-    uint64_t mIndex;
-    };
+} // extern "C"

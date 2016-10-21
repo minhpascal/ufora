@@ -893,7 +893,7 @@ int _initBinaryObjectRegistryCodes(PyObject* binaryObjectRegistryModule)
 extern "C" {
 
 PyMODINIT_FUNC
-initBinaryObjectRegistry(void)
+initBinaryObjectRegistry()
     {
     PyObject* binaryObjectRegistryModule;
 

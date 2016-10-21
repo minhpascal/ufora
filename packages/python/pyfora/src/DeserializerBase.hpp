@@ -15,33 +15,21 @@
 ****************************************************************************/
 #pragma once
 
-#include "DeserializerBase.hpp"
+#include <stdint.h>
+#include <string>
+#include <vector>
 
-#include <unistd.h>
 
-
-class StringDeserializer: public Deserializer {
+class Deserializer {
 public:
-    StringDeserializer(const std::vector<char>& data);
-    StringDeserializer(const std::string& data);
-    StringDeserializer(const char* data, size_t size);
+    virtual ~Deserializer() = 0;
 
-    virtual ~StringDeserializer()
-        {
-        }
+    virtual bool finished() = 0;
 
-    virtual bool finished() {
-        return mIndex >= mData.size();
-        }
-
-    virtual char readByte();
-    virtual int32_t readInt32();
-    virtual int64_t readInt64();
-    virtual double readFloat64();
-    virtual void readInt64s(std::vector<int64_t>& ioInts);
-    virtual std::string readString();
-
-private:
-    std::vector<char> mData;
-    uint64_t mIndex;
-    };
+    virtual char readByte() = 0;
+    virtual int32_t readInt32() = 0;
+    virtual int64_t readInt64() = 0;
+    virtual double readFloat64() = 0;
+    virtual void readInt64s(std::vector<int64_t>& ioInts) = 0;
+    virtual std::string readString() = 0;
+};

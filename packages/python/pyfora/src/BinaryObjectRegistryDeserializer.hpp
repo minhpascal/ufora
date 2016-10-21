@@ -15,33 +15,26 @@
 ****************************************************************************/
 #pragma once
 
-#include "DeserializerBase.hpp"
+#include <Python.h>
 
-#include <unistd.h>
+#include <stdint.h>
+#include <vector>
 
 
-class StringDeserializer: public Deserializer {
+class BinaryObjectRegistry;
+class Deserializer;
+
+
+class BinaryObjectRegistryDeserializer {
 public:
-    StringDeserializer(const std::vector<char>& data);
-    StringDeserializer(const std::string& data);
-    StringDeserializer(const char* data, size_t size);
-
-    virtual ~StringDeserializer()
-        {
-        }
-
-    virtual bool finished() {
-        return mIndex >= mData.size();
-        }
-
-    virtual char readByte();
-    virtual int32_t readInt32();
-    virtual int64_t readInt64();
-    virtual double readFloat64();
-    virtual void readInt64s(std::vector<int64_t>& ioInts);
-    virtual std::string readString();
+    static void deserializeFromStream(Deserializer* stream, 
+                                      BinaryObjectRegistry& binaryObjectRegistry
+                                      );
 
 private:
-    std::vector<char> mData;
-    uint64_t mIndex;
-    };
+    static void readSimplePrimitive(Deserializer* stream);
+    static PyObject* readPrimitive(char code, Deserializer* stream);
+    static void readInt64s(Deserializer* stream, std::vector<int64_t>& ioInts);
+    static PyObject* readSimplePrimitive(Deserializer* stream);
+
+};

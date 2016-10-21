@@ -15,33 +15,13 @@
 ****************************************************************************/
 #pragma once
 
-#include "DeserializerBase.hpp"
-
-#include <unistd.h>
+#include <Python.h>
 
 
-class StringDeserializer: public Deserializer {
-public:
-    StringDeserializer(const std::vector<char>& data);
-    StringDeserializer(const std::string& data);
-    StringDeserializer(const char* data, size_t size);
+class StringDeserializer;
 
-    virtual ~StringDeserializer()
-        {
-        }
 
-    virtual bool finished() {
-        return mIndex >= mData.size();
-        }
-
-    virtual char readByte();
-    virtual int32_t readInt32();
-    virtual int64_t readInt64();
-    virtual double readFloat64();
-    virtual void readInt64s(std::vector<int64_t>& ioInts);
-    virtual std::string readString();
-
-private:
-    std::vector<char> mData;
-    uint64_t mIndex;
-    };
+typedef struct {
+    PyObject_HEAD
+    StringDeserializer* nativeStringDeserializer;
+} PyStringDeserializer;

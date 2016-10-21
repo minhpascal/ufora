@@ -59,6 +59,7 @@ static void
 PyObjectWalkerStruct_dealloc(PyObjectWalkerStruct* self)
     {
     delete self->nativePyObjectWalker;
+    self->nativePyObjectWalker = 0;
     self->ob_type->tp_free((PyObject*)self);
     }
 

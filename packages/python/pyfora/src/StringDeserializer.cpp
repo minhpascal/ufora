@@ -23,6 +23,20 @@ StringDeserializer::StringDeserializer(const std::vector<char>& data)
     }
 
 
+StringDeserializer::StringDeserializer(const std::string& data)
+    : mData(data.begin(), data.end()),
+      mIndex(0)
+    {
+    }
+
+
+StringDeserializer::StringDeserializer(const char* data, size_t size)
+    : mData(data, data + size),
+      mIndex(0)
+    {
+    }
+
+
 char StringDeserializer::readByte()
     {
     char res = mData[mIndex];

@@ -36,6 +36,15 @@ install_requires = ['futures', 'socketIO-client>=0.6.5', 'numpy', 'wsaccel']
 
 ext_modules = []
 
+binaryObjectRegistryDeserializerModule = Extension('pyfora.BinaryObjectRegistryDeserializerNative',
+                                                   language='c++',
+                                                   sources=['pyfora/src/StringDeserializer.cpp',
+                                                            'pyfora/src/BinaryObjectRegistry.cpp',
+                                                        'pyfora/src/BinaryObjectRegistryDeserializer.cpp']
+                                               )
+
+ext_modules.append(binaryObjectRegistryDeserializerModule)
+
 stringbuildermodule = Extension('pyfora.StringBuilder',
                                 language='c++',
                                 sources=['pyfora/src/StringBuilder.cpp',
@@ -46,7 +55,6 @@ ext_modules.append(stringbuildermodule)
 binaryObjectRegistryModule = Extension('pyfora.BinaryObjectRegistry',
                                        language='c++',
                                        sources=['pyfora/src/BinaryObjectRegistry.cpp',
-                                                'pyfora/src/StringDeserializer.cpp',
                                                 'pyfora/src/PyObjectWalker.cpp',
                                                 'pyfora/src/binaryobjectregistrymodule.cpp',
                                                 'pyfora/src/StringBuilder.cpp',
